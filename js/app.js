@@ -1527,7 +1527,7 @@
   }
 
   function syncOverlay() {
-    const sidebarOverlay = el.sidebar.classList.contains("is-open") && window.innerWidth < 900;
+    const sidebarOverlay = el.sidebar.classList.contains("is-open") && window.innerWidth < 768;
     const drawerOverlay = el.appShell.classList.contains("has-detail") && window.innerWidth <= 1439;
     el.pageOverlay.hidden = !(sidebarOverlay || drawerOverlay);
   }

@@ -991,7 +991,7 @@ textarea:focus {
   backdrop-filter: blur(10px);
 }
 
-@media (min-width: 900px) and (max-width: 1599px) {
+@media (min-width: 768px) and (max-width: 1599px) {
   .topbar {
     grid-template-columns: minmax(0, 1fr) auto auto;
     grid-template-areas: "title clocks add" "months months months";
@@ -1005,13 +1005,13 @@ textarea:focus {
   .add-lesson-button { grid-area: add; }
 }
 
-@media (min-width: 900px) and (max-width: 1439px) {
+@media (min-width: 768px) and (max-width: 1439px) {
   .app-shell.has-detail { grid-template-columns: var(--sidebar-width) minmax(0, 1fr) 0; }
   .lesson-drawer { position: fixed; inset: 0 0 0 auto; z-index: 40; width: min(var(--detail-width), 92vw); transform: translateX(102%); opacity: 1; pointer-events: none; box-shadow: var(--shadow); transition: transform 160ms ease; }
   .app-shell.has-detail .lesson-drawer { transform: translateX(0); pointer-events: auto; }
 }
 
-@media (max-width: 899px) {
+@media (max-width: 767px) {
   .app-shell, .app-shell.has-detail { grid-template-columns: minmax(0, 1fr) 0; }
   .sidebar { position: fixed; inset: 0 auto 0 0; width: var(--sidebar-width); transform: translateX(-102%); box-shadow: var(--shadow); transition: transform 160ms ease; }
   .sidebar.is-open { transform: translateX(0); }
@@ -1023,8 +1023,10 @@ textarea:focus {
 @media (max-width: 1120px) {
   .topbar { grid-template-columns: minmax(0,1fr) auto auto; grid-template-areas: "title clocks add" "months months months"; min-height: 136px; padding-block: 10px; }
   .title-block { grid-area: title; }
-  .month-controls { grid-area: months; }
-  .week-jump { margin-left: auto; }
+  .month-controls { grid-area: months; flex-wrap: wrap; }
+  .month-controls h2 { flex: 1 0 220px; order: -2; margin-left: 0; }
+  .view-switch { order: -1; }
+  .week-jump { flex: 0 0 172px; margin-left: auto; }
   .clock-zone { grid-area: clocks; }
   .add-lesson-button { grid-area: add; min-width: 46px; width: 46px; padding: 0; }
   .add-lesson-button span { display: none; }
@@ -1033,7 +1035,7 @@ textarea:focus {
   .app-shell.has-detail .lesson-drawer { transform: translateX(0); pointer-events: auto; }
 }
 
-@media (max-width: 899px) {
+@media (max-width: 767px) {
   .app-shell, .app-shell.has-detail { display: block; }
 }
 
