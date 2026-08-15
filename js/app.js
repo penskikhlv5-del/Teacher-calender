@@ -29,6 +29,8 @@
   let dialogDirty = false;
   let undoSnapshot = null;
   let undoTimer = null;
+  let highlightedCopyIds = new Set();
+  let copyHighlightTimer = null;
 
   const el = {};
 
@@ -38,13 +40,14 @@
 
   function cacheElements() {
     [
-      "appShell", "sidebar", "sidebarOpen", "sidebarClose", "pageOverlay", "monthTitle", "monthGrid",
+      "appShell", "mainView", "sidebar", "sidebarOpen", "paymentSidebarOpen", "sidebarClose", "pageOverlay", "monthTitle", "monthGrid",
+      "calendarNavButton", "paymentsNavButton", "calendarTopbar", "calendarPanel", "paymentPanel",
       "monthViewButton", "weekViewButton",
-      "todayButton", "prevMonthButton", "nextMonthButton", "localClock", "moscowClock", "timezoneLabel",
+      "todayButton", "prevMonthButton", "nextMonthButton", "weekPicker", "localClock", "moscowClock", "timezoneLabel",
       "timezoneLeft", "timezoneRight", "addLessonButton", "participantFilters", "allParticipantsFilter",
       "typeFilter", "statusFilter", "paymentFilter", "clearFiltersButton", "manageParticipantsButton",
       "lessonDrawer", "lessonDialog", "lessonForm", "lessonDialogTitle", "lessonParticipant", "lessonCourse", "lessonDate",
-      "lessonTime", "lessonDuration", "customDurationField", "customDuration", "lessonFormat", "lessonFormatNote",
+      "lessonTime", "lessonDuration", "lessonSourceTimezone", "customDurationField", "customDuration", "lessonFormat", "lessonFormatNote",
       "lessonStatus", "lessonPayment", "lessonPaymentAmount", "lessonHomework", "lessonRepeat", "repeatFields", "repeatFrequency",
       "weekdayPicker", "repeatUntil", "editScopeCard", "conflictWarning", "conflictWarningText", "confirmConflict",
       "participantsDialog", "participantSearch", "participantTypeView", "participantCardList", "participantForm",
@@ -167,9 +170,28 @@
     const offset = state.settings.displayOffsetMinutes;
     el.localClock.textContent = D.clockTime(offset);
     el.moscowClock.textContent = D.clockTime(180);
-    el.timezoneLabel.textContent = offset === 300 ? `Екатеринбург · ${D.offsetLabel(offset)}` : D.offsetLabel(offset);
+    el.timezoneLabel.textContent = timezoneLabel(offset);
     el.timezoneLeft.disabled = offset <= -720;
     el.timezoneRight.disabled = offset >= 840;
+  }
+
+  function timezoneLabel(offsetMinutes) {
+    const offset = Number(offsetMinutes || 0);
+    if (offset === 300) return `Екатеринбург · ${D.offsetLabel(offset)}`;
+    if (offset === 180) return `Москва · ${D.offsetLabel(offset)}`;
+    return D.offsetLabel(offset);
+  }
+
+  function setLessonSourceTimezone(offsetMinutes) {
+    const offset = Number(offsetMinutes);
+    const normalizedOffset = Number.isFinite(offset) ? offset : 300;
+    el.lessonSourceTimezone.querySelectorAll("option[data-legacy]").forEach(function (option) { option.remove(); });
+    if (![180, 300].includes(normalizedOffset)) {
+      const legacy = optionElement(String(normalizedOffset), `${D.offsetLabel(normalizedOffset)} · сохранённый пояс`, true);
+      legacy.dataset.legacy = "true";
+      el.lessonSourceTimezone.appendChild(legacy);
+    }
+    el.lessonSourceTimezone.value = String(normalizedOffset);
   }
 
   function shiftTimezone(amount) {
@@ -263,6 +285,8 @@
     const isWeekView = state.settings.calendarView === "week";
     const grid = isWeekView ? D.getWeekGrid(selectedDayKey) : D.getMonthGrid(viewMonth.year, viewMonth.monthIndex);
     el.monthTitle.textContent = isWeekView ? D.formatWeekTitle(grid) : D.formatMonthTitle(viewMonth.year, viewMonth.monthIndex);
+    el.weekPicker.value = D.weekInputValue(selectedDayKey);
+    el.calendarPanel.setAttribute("aria-label", isWeekView ? "Недельный календарь" : "Месячный календарь");
     el.monthGrid.classList.toggle("is-week-view", isWeekView);
     el.monthViewButton.classList.toggle("is-active", !isWeekView);
     el.weekViewButton.classList.toggle("is-active", isWeekView);
@@ -302,11 +326,14 @@
       header.appendChild(number);
 
       const dayLessons = grouped.get(cell.key) || [];
-      if (!isWeekView && dayLessons.length > 4) day.classList.add("is-crowded");
+      if (!isWeekView && dayLessons.length >= 3) day.classList.add("is-compact");
+      if (!isWeekView && dayLessons.length >= 5) day.classList.add("is-crowded");
       if (dayLessons.length) {
+        day.setAttribute("aria-label", `${D.formatDateLong(cell.key, true)}. Уроков: ${dayLessons.length}`);
         const summary = document.createElement("span");
         summary.className = "day-summary";
         summary.textContent = String(dayLessons.length);
+        summary.title = `Всего уроков: ${dayLessons.length}`;
         header.appendChild(summary);
       }
       day.appendChild(header);
@@ -378,7 +405,7 @@
     const participant = participantById(lesson.participantId);
     const button = document.createElement("button");
     button.type = "button";
-    button.className = `lesson-chip ${statusClass(lesson.lessonStatus)}${lesson.instanceId === selectedInstanceId ? " is-selected" : ""}`;
+    button.className = `lesson-chip ${statusClass(lesson.lessonStatus)}${lesson.instanceId === selectedInstanceId ? " is-selected" : ""}${highlightedCopyIds.has(lesson.id) ? " is-copy-highlight" : ""}`;
     button.dataset.instanceId = lesson.instanceId;
     button.style.setProperty("--participant-color", participant ? participant.color : "#928b82");
     button.setAttribute("aria-label", `${lesson.displayTime}, ${participant ? participant.name : "Неизвестный участник"}, ${STATUS_LABELS[lesson.lessonStatus] || "урок"}`);
@@ -437,6 +464,40 @@
     el.lessonDrawer.setAttribute("aria-hidden", "true");
     renderCalendar();
     syncOverlay();
+  }
+
+  function showCalendarSection() {
+    el.mainView.classList.remove("is-payment-view");
+    el.calendarTopbar.hidden = false;
+    el.calendarPanel.hidden = false;
+    el.paymentPanel.hidden = true;
+    el.calendarNavButton.classList.add("is-active");
+    el.paymentsNavButton.classList.remove("is-active");
+    closeSidebar();
+  }
+
+  function showPaymentsSection() {
+    closeDrawer();
+    el.calendarTopbar.hidden = true;
+    el.calendarPanel.hidden = true;
+    el.paymentPanel.hidden = false;
+    el.mainView.classList.add("is-payment-view");
+    el.calendarNavButton.classList.remove("is-active");
+    el.paymentsNavButton.classList.add("is-active");
+    closeSidebar();
+    if (TC.Payments) TC.Payments.open();
+  }
+
+  function openLessonFromPayments(lesson) {
+    if (!lesson || !lesson.displayDateKey) return;
+    showCalendarSection();
+    selectedDayKey = lesson.displayDateKey;
+    const parts = D.parseDateKey(selectedDayKey);
+    if (parts) viewMonth = { year: parts.year, monthIndex: parts.monthIndex };
+    renderAll();
+    const visible = visibleLessons.find(function (item) { return item.instanceId === lesson.instanceId; });
+    if (visible) selectLesson(visible.instanceId);
+    else showToast("Урок не найден в текущем расписании", { error: true });
   }
 
   function makeDrawerSelect(labels, selected, field) {
@@ -510,7 +571,7 @@
     addMeta(meta, "Продолжительность", `${lesson.durationMinutes} минут`);
     addMeta(meta, "Курс / предмет", lesson.course || "Не указан");
     addMeta(meta, "Формат", FORMAT_LABELS[lesson.format] || lesson.format || "—");
-    addMeta(meta, "Исходный пояс", D.offsetLabel(Number(lesson.sourceOffsetMinutes || 0)));
+    addMeta(meta, "Исходный пояс", timezoneLabel(lesson.sourceOffsetMinutes == null ? 300 : Number(lesson.sourceOffsetMinutes)));
     if (lesson.formatNote) addMeta(meta, "Ссылка / заметка", lesson.formatNote);
     metaSection.append(metaTitle, meta);
     root.appendChild(metaSection);
@@ -566,6 +627,13 @@
     paymentBadge.textContent = PAYMENT_LABELS[lesson.paymentStatus] || "Не оплачено";
     paymentSummary.append(paymentAmount, paymentBadge);
     paymentSection.append(paymentTitle, paymentSummary, makeDrawerSelect(PAYMENT_LABELS, lesson.paymentStatus, "paymentStatus"));
+    if (lesson.paymentDate || lesson.paymentComment) {
+      const paymentExtra = document.createElement("p");
+      paymentExtra.className = "payment-extra";
+      const paymentDate = lesson.paymentDate ? `Дата оплаты: ${D.formatDateShort(lesson.paymentDate)}` : "Дата оплаты не указана";
+      paymentExtra.textContent = lesson.paymentComment ? `${paymentDate}. ${lesson.paymentComment}` : paymentDate;
+      paymentSection.appendChild(paymentExtra);
+    }
     root.appendChild(paymentSection);
 
     if (lesson.recurring) {
@@ -651,8 +719,8 @@
       });
   }
 
-  function nextRoundedTime() {
-    const parts = D.partsFromUtc(Date.now(), state.settings.displayOffsetMinutes);
+  function nextRoundedTime(offsetMinutes) {
+    const parts = D.partsFromUtc(Date.now(), Number.isFinite(Number(offsetMinutes)) ? Number(offsetMinutes) : state.settings.displayOffsetMinutes);
     let minutes = Math.ceil((parts.minute + 1) / 30) * 30;
     let hour = parts.hour;
     if (minutes >= 60) { minutes = 0; hour = (hour + 1) % 24; }
@@ -693,8 +761,10 @@
     lessonFormContext = { mode: "new", lesson: null };
     el.lessonDialogTitle.textContent = "Новый урок";
     populateParticipantSelect(participantId || "");
-    el.lessonDate.value = dateKey || selectedDayKey || D.todayKey(state.settings.displayOffsetMinutes);
-    el.lessonTime.value = el.lessonDate.value === D.todayKey(state.settings.displayOffsetMinutes) ? nextRoundedTime() : "17:00";
+    const defaultSourceOffset = [180, 300].includes(state.settings.displayOffsetMinutes) ? state.settings.displayOffsetMinutes : 300;
+    setLessonSourceTimezone(defaultSourceOffset);
+    el.lessonDate.value = dateKey || selectedDayKey || D.todayKey(defaultSourceOffset);
+    el.lessonTime.value = el.lessonDate.value === D.todayKey(defaultSourceOffset) ? nextRoundedTime(defaultSourceOffset) : "17:00";
     el.lessonDuration.value = "60";
     el.lessonFormat.value = "online";
     el.lessonStatus.value = "scheduled";
@@ -719,8 +789,10 @@
     populateParticipantSelect(lesson.participantId);
     el.lessonParticipant.value = lesson.participantId;
     el.lessonCourse.value = lesson.course || "";
-    el.lessonDate.value = lesson.displayDateKey;
-    el.lessonTime.value = D.timeFromUtc(lesson.startUtc, state.settings.displayOffsetMinutes);
+    const sourceOffset = Number.isFinite(Number(lesson.sourceOffsetMinutes)) ? Number(lesson.sourceOffsetMinutes) : 300;
+    setLessonSourceTimezone(sourceOffset);
+    el.lessonDate.value = D.dateKeyFromUtc(lesson.startUtc, sourceOffset);
+    el.lessonTime.value = D.timeFromUtc(lesson.startUtc, sourceOffset);
     setDurationInForm(lesson.durationMinutes);
     el.lessonFormat.value = lesson.format || "online";
     el.lessonFormatNote.value = lesson.formatNote || "";
@@ -734,7 +806,7 @@
       el.lessonRepeat.disabled = true;
       el.repeatFields.hidden = false;
       el.editScopeCard.hidden = false;
-      fillRecurrenceForm(series, lesson.displayDateKey);
+      fillRecurrenceForm(series, el.lessonDate.value);
     }
     dialogDirty = false;
     el.lessonDialog.showModal();
@@ -796,13 +868,14 @@
 
   function readLessonForm() {
     const duration = el.lessonDuration.value === "custom" ? Number(el.customDuration.value) : Number(el.lessonDuration.value);
+    const sourceOffsetMinutes = Number(el.lessonSourceTimezone.value);
     return {
       participantId: el.lessonParticipant.value,
       course: el.lessonCourse.value.trim(),
       date: el.lessonDate.value,
       time: el.lessonTime.value,
-      startUtc: D.localDateTimeToUtc(el.lessonDate.value, el.lessonTime.value, state.settings.displayOffsetMinutes),
-      sourceOffsetMinutes: state.settings.displayOffsetMinutes,
+      startUtc: D.localDateTimeToUtc(el.lessonDate.value, el.lessonTime.value, sourceOffsetMinutes),
+      sourceOffsetMinutes,
       durationMinutes: duration,
       format: el.lessonFormat.value,
       formatNote: el.lessonFormatNote.value.trim(),
@@ -843,7 +916,8 @@
 
   function findConflicts(candidate) {
     if (!candidate.startUtc || isCancelled(candidate.lessonStatus)) return [];
-    const parts = D.parseDateKey(candidate.date);
+    const candidateDisplayDate = D.dateKeyFromUtc(candidate.startUtc, state.settings.displayOffsetMinutes);
+    const parts = D.parseDateKey(candidateDisplayDate);
     const grid = D.getMonthGrid(parts.year, parts.monthIndex);
     const existing = Recurrence.expand(state, grid, state.settings.displayOffsetMinutes);
     const candidateStart = Date.parse(candidate.startUtc);
@@ -886,9 +960,10 @@
       applyLessonEdit(data, timestamp);
     }
 
-    const savedDate = D.parseDateKey(data.date);
+    const savedDisplayDate = D.dateKeyFromUtc(data.startUtc, state.settings.displayOffsetMinutes);
+    const savedDate = D.parseDateKey(savedDisplayDate);
     if (savedDate) {
-      selectedDayKey = data.date;
+      selectedDayKey = savedDisplayDate;
       viewMonth = { year: savedDate.year, monthIndex: savedDate.monthIndex };
     }
     revealLessonThroughFilters(data);
@@ -926,7 +1001,8 @@
       id: uuid(), participantId: data.participantId, startUtc: data.startUtc,
       sourceOffsetMinutes: data.sourceOffsetMinutes, durationMinutes: data.durationMinutes,
       course: data.course, format: data.format, formatNote: data.formatNote, lessonStatus: data.lessonStatus,
-      paymentStatus: data.paymentStatus, paymentAmount: data.paymentAmount, homework: data.homework, movedFromUtc: null,
+      paymentStatus: data.paymentStatus, paymentAmount: data.paymentAmount, paymentDate: data.paymentDate || "",
+      paymentComment: data.paymentComment || "", homework: data.homework, movedFromUtc: null, originalLessonId: data.originalLessonId || null,
       createdAt: timestamp, updatedAt: timestamp
     };
   }
@@ -936,7 +1012,8 @@
       id: id || uuid(), participantId: data.participantId, anchorStartUtc: data.startUtc,
       sourceOffsetMinutes: data.sourceOffsetMinutes, durationMinutes: data.durationMinutes,
       course: data.course, format: data.format, formatNote: data.formatNote, defaultLessonStatus: data.lessonStatus,
-      defaultPaymentStatus: data.paymentStatus, defaultPaymentAmount: data.paymentAmount, defaultHomework: data.homework,
+      defaultPaymentStatus: data.paymentStatus, defaultPaymentAmount: data.paymentAmount,
+      defaultPaymentDate: data.paymentDate || "", defaultPaymentComment: data.paymentComment || "", defaultHomework: data.homework,
       recurrence: data.recurrence, createdAt: timestamp, updatedAt: timestamp
     };
   }
@@ -946,12 +1023,20 @@
     if (!lesson.recurring) {
       const index = state.singleLessons.findIndex(function (item) { return item.id === lesson.id; });
       if (index < 0) return;
+      const previous = state.singleLessons[index];
       if (data.repeat) {
         state.singleLessons.splice(index, 1);
-        state.series.push(makeSeriesFromData(data, timestamp));
+        state.series.push(makeSeriesFromData(Object.assign({}, data, {
+          paymentDate: previous.paymentDate || "",
+          paymentComment: previous.paymentComment || ""
+        }), timestamp));
       } else {
-        const createdAt = state.singleLessons[index].createdAt;
-        state.singleLessons[index] = Object.assign(makeSingleFromData(data, timestamp), { id: lesson.id, createdAt, movedFromUtc: state.singleLessons[index].movedFromUtc || null });
+        const createdAt = previous.createdAt;
+        state.singleLessons[index] = Object.assign(makeSingleFromData(Object.assign({}, data, {
+          paymentDate: previous.paymentDate || "",
+          paymentComment: previous.paymentComment || "",
+          originalLessonId: previous.originalLessonId || null
+        }), timestamp), { id: lesson.id, createdAt, movedFromUtc: previous.movedFromUtc || null });
       }
       return;
     }
@@ -965,7 +1050,9 @@
       const scheduleDelta = Date.parse(data.startUtc) - Date.parse(lesson.startUtc);
       const seriesData = Object.assign({}, data, {
         startUtc: new Date(Date.parse(existingSeries.anchorStartUtc) + scheduleDelta).toISOString(),
-        sourceOffsetMinutes: scheduleDelta === 0 ? existingSeries.sourceOffsetMinutes : data.sourceOffsetMinutes
+        sourceOffsetMinutes: scheduleDelta === 0 ? existingSeries.sourceOffsetMinutes : data.sourceOffsetMinutes,
+        paymentDate: existingSeries.defaultPaymentDate || "",
+        paymentComment: existingSeries.defaultPaymentComment || ""
       });
       state.series[index] = Object.assign(makeSeriesFromData(seriesData, timestamp, lesson.seriesId), { createdAt });
     } else {
@@ -976,7 +1063,8 @@
         participantId: data.participantId, startUtc: data.startUtc, sourceOffsetMinutes: data.sourceOffsetMinutes,
         durationMinutes: data.durationMinutes, course: data.course, format: data.format, formatNote: data.formatNote,
         lessonStatus: data.lessonStatus, paymentStatus: data.paymentStatus, paymentAmount: data.paymentAmount, homework: data.homework,
-        movedFromUtc: data.startUtc !== lesson.originalStartUtc ? lesson.originalStartUtc : lesson.movedFromUtc
+        movedFromUtc: data.startUtc !== lesson.originalStartUtc ? lesson.originalStartUtc : lesson.movedFromUtc,
+        originalLessonId: data.startUtc !== lesson.originalStartUtc ? (lesson.originalLessonId || lesson.instanceId) : lesson.originalLessonId
       });
     }
   }
@@ -1001,8 +1089,9 @@
       const stored = state.singleLessons.find(function (item) { return item.id === lesson.id; });
       if (stored) {
         stored.movedFromUtc = stored.movedFromUtc || stored.startUtc;
+        stored.originalLessonId = stored.originalLessonId || stored.id;
         stored.startUtc = newStartUtc;
-        stored.sourceOffsetMinutes = state.settings.displayOffsetMinutes;
+        stored.sourceOffsetMinutes = Number.isFinite(Number(lesson.sourceOffsetMinutes)) ? Number(lesson.sourceOffsetMinutes) : 300;
         stored.lessonStatus = "moved";
         stored.updatedAt = nowIso();
       }
@@ -1013,13 +1102,13 @@
         if (series) {
           const scheduleDelta = Date.parse(newStartUtc) - Date.parse(lesson.startUtc);
           series.anchorStartUtc = new Date(Date.parse(series.anchorStartUtc) + scheduleDelta).toISOString();
-          series.sourceOffsetMinutes = state.settings.displayOffsetMinutes;
+          series.sourceOffsetMinutes = Number.isFinite(Number(series.sourceOffsetMinutes)) ? Number(series.sourceOffsetMinutes) : 300;
           series.defaultLessonStatus = "moved";
           if (series.recurrence.frequency === "weekly" && (series.recurrence.weekdays || []).length <= 1) series.recurrence.weekdays = [D.weekday(el.moveDate.value)];
           series.updatedAt = nowIso();
         }
       } else {
-        upsertException(lesson, "moved", { startUtc: newStartUtc, sourceOffsetMinutes: state.settings.displayOffsetMinutes, lessonStatus: "moved", movedFromUtc: lesson.originalStartUtc });
+        upsertException(lesson, "moved", { startUtc: newStartUtc, sourceOffsetMinutes: Number.isFinite(Number(lesson.sourceOffsetMinutes)) ? Number(lesson.sourceOffsetMinutes) : 300, lessonStatus: "moved", movedFromUtc: lesson.originalStartUtc, originalLessonId: lesson.instanceId });
       }
     }
     persist();
@@ -1326,7 +1415,7 @@
       try {
         const imported = Storage.normalize(JSON.parse(reader.result));
         const lessonCount = imported.singleLessons.length + imported.series.length;
-        const summary = `В файле: ${imported.participants.length} учеников/групп, ${lessonCount} одиночных уроков и серий. Заменить текущие данные?`;
+        const summary = `В файле: ${imported.participants.length} учеников/групп, ${lessonCount} одиночных уроков и серий, ${imported.reportHistory.length} отчётов, ${imported.copyHistory.length} операций копирования. Заменить текущие данные?`;
         if (!window.confirm(summary)) return;
         exportState("teacher-calendar-before-import");
         state = imported;
@@ -1345,7 +1434,7 @@
   }
 
   function resetAllData() {
-    if (!window.confirm("Сбросить все уроки, серии, карточки и настройки? Сначала рекомендуется сделать экспорт.")) return;
+    if (!window.confirm("Сбросить все уроки, серии, карточки, оплаты, отчёты, историю копирования и настройки? Сначала рекомендуется сделать экспорт.")) return;
     if (!window.confirm("Это второе подтверждение. Удалить все локальные данные без возможности восстановления?")) return;
     exportState("teacher-calendar-before-reset");
     Storage.clear();
@@ -1388,6 +1477,45 @@
     renderAll();
   }
 
+  function openSelectedWeek() {
+    const monday = D.mondayFromWeekInput(el.weekPicker.value);
+    if (!monday) {
+      showToast("Выберите корректную неделю", { error: true });
+      el.weekPicker.value = D.weekInputValue(selectedDayKey);
+      return;
+    }
+    selectedDayKey = monday;
+    const parts = D.parseDateKey(monday);
+    viewMonth = { year: parts.year, monthIndex: parts.monthIndex };
+    state.settings.calendarView = "week";
+    selectedInstanceId = null;
+    persist(false);
+    renderAll();
+  }
+
+  function showCopiedWeek(targetMonday, createdLessonIds) {
+    selectedDayKey = targetMonday;
+    const targetParts = D.parseDateKey(targetMonday);
+    if (targetParts) viewMonth = { year: targetParts.year, monthIndex: targetParts.monthIndex };
+    highlightedCopyIds = new Set(createdLessonIds || []);
+    if (highlightedCopyIds.size) {
+      state.settings.filters.participantIds = [];
+      state.settings.filters.participantTypes = [];
+      state.settings.filters.lessonStatuses = [];
+      state.settings.filters.paymentStatuses = [];
+      persist(false);
+    }
+    selectedInstanceId = null;
+    renderAll();
+    window.clearTimeout(copyHighlightTimer);
+    if (highlightedCopyIds.size) {
+      copyHighlightTimer = window.setTimeout(function () {
+        highlightedCopyIds.clear();
+        renderCalendar();
+      }, 3600);
+    }
+  }
+
   function openSidebar() {
     el.sidebar.classList.add("is-open");
     syncOverlay();
@@ -1399,8 +1527,8 @@
   }
 
   function syncOverlay() {
-    const sidebarOverlay = el.sidebar.classList.contains("is-open") && window.innerWidth < 1440;
-    const drawerOverlay = el.appShell.classList.contains("has-detail") && window.innerWidth <= 1120;
+    const sidebarOverlay = el.sidebar.classList.contains("is-open") && window.innerWidth < 900;
+    const drawerOverlay = el.appShell.classList.contains("has-detail") && window.innerWidth <= 1439;
     el.pageOverlay.hidden = !(sidebarOverlay || drawerOverlay);
   }
 
@@ -1410,6 +1538,8 @@
     renderCalendar();
     renderDrawer();
     if (el.participantsDialog.open) renderParticipantCards();
+    if (TC.Payments) TC.Payments.refresh();
+    if (TC.WeekCopy) TC.WeekCopy.refreshHistory();
     syncOverlay();
   }
 
@@ -1419,11 +1549,15 @@
     el.monthViewButton.addEventListener("click", function () { setCalendarView("month"); });
     el.weekViewButton.addEventListener("click", function () { setCalendarView("week"); });
     el.todayButton.addEventListener("click", goToday);
+    el.weekPicker.addEventListener("change", openSelectedWeek);
     el.timezoneLeft.addEventListener("click", function () { shiftTimezone(-60); });
     el.timezoneRight.addEventListener("click", function () { shiftTimezone(60); });
     el.addLessonButton.addEventListener("click", function () { openNewLessonDialog(selectedDayKey); });
+    el.calendarNavButton.addEventListener("click", showCalendarSection);
+    el.paymentsNavButton.addEventListener("click", showPaymentsSection);
     el.manageParticipantsButton.addEventListener("click", function () { closeSidebar(); openParticipantsDialog(); });
     el.sidebarOpen.addEventListener("click", openSidebar);
+    el.paymentSidebarOpen.addEventListener("click", openSidebar);
     el.sidebarClose.addEventListener("click", closeSidebar);
     el.pageOverlay.addEventListener("click", function () { closeSidebar(); closeDrawer(); });
     window.addEventListener("resize", syncOverlay);
@@ -1480,6 +1614,24 @@
 
   function init() {
     cacheElements();
+    if (TC.Payments) {
+      TC.Payments.init({
+        getState: function () { return state; },
+        save: function () { persist(); renderFilters(); renderCalendar(); renderDrawer(); },
+        toast: function (message, isError) { showToast(message, { error: Boolean(isError) }); },
+        openLesson: openLessonFromPayments
+      });
+    }
+    if (TC.WeekCopy) {
+      TC.WeekCopy.init({
+        getState: function () { return state; },
+        save: function () { const saved = persist(); renderAll(); return saved; },
+        toast: function (message, isError) { showToast(message, { error: Boolean(isError) }); },
+        toastAction: function (message, actionLabel, onAction) { showToast(message, { actionLabel, onAction, duration: 7000 }); },
+        getSelectedDayKey: function () { return selectedDayKey; },
+        showCopiedWeek
+      });
+    }
     attachEvents();
     renderAll();
     window.setInterval(renderClock, 1000);

@@ -192,7 +192,7 @@ svg {
 .filter-grid { display: grid; gap: 8px; margin-top: 10px; }
 .filter-grid label { display: grid; grid-template-columns: 50px 1fr; align-items: center; gap: 8px; color: var(--text-faint); font-size: 12px; }
 
-select, input[type="text"], input[type="search"], input[type="date"], input[type="time"], input[type="number"], textarea {
+select, input[type="text"], input[type="search"], input[type="date"], input[type="week"], input[type="time"], input[type="number"], textarea {
   width: 100%;
   min-height: 39px;
   border: 1px solid var(--border);
@@ -213,6 +213,35 @@ select:hover, input:hover, textarea:hover { border-color: #c6beb3; }
 .legend .moved { background: var(--moved); }
 .legend .missed { background: var(--missed); }
 
+.teacher-profile {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-top: auto;
+  padding: 14px 17px;
+  border-top: 1px solid var(--border-subtle);
+  background: linear-gradient(145deg, rgba(255,255,255,.78), rgba(248,242,232,.88));
+}
+.teacher-avatar {
+  display: grid;
+  flex: 0 0 39px;
+  width: 39px;
+  height: 39px;
+  place-items: center;
+  border: 1px solid #df900c;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #ffc64b, #ec9000);
+  color: #3b2604;
+  font-family: "Segoe UI Variable Display", "Aptos Display", "Segoe UI", sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  box-shadow: 0 6px 13px rgba(201,119,0,.24), inset 1px 1px 0 rgba(255,255,255,.62);
+}
+.teacher-profile-copy { min-width: 0; }
+.teacher-profile-copy small, .teacher-profile-copy strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.teacher-profile-copy small { color: var(--text-faint); font-size: 10px; }
+.teacher-profile-copy strong { margin-top: 1px; color: var(--text); font-size: 12px; }
+
 .sidebar-data-actions {
   position: sticky;
   bottom: 0;
@@ -220,7 +249,7 @@ select:hover, input:hover, textarea:hover { border-color: #c6beb3; }
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 5px;
-  margin-top: auto;
+  margin-top: 0;
   padding: 12px;
   border-top: 1px solid var(--border-subtle);
   background: var(--bg-deep);
@@ -246,7 +275,7 @@ select:hover, input:hover, textarea:hover { border-color: #c6beb3; }
 
 .topbar {
   display: grid;
-  grid-template-columns: minmax(155px, .8fr) minmax(340px, 1.3fr) auto auto;
+  grid-template-columns: minmax(155px, .7fr) minmax(620px, 2fr) auto auto;
   align-items: center;
   gap: 16px;
   min-height: 116px;
@@ -262,6 +291,31 @@ select:hover, input:hover, textarea:hover { border-color: #c6beb3; }
 
 .month-controls { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .month-controls h2 { min-width: 150px; margin: 0 0 0 5px; font-size: clamp(17px, 1.5vw, 23px); font-weight: 570; white-space: nowrap; letter-spacing: -.02em; }
+.week-jump {
+  display: grid;
+  flex: 0 0 172px;
+  gap: 3px;
+  margin-left: 5px;
+  color: var(--text-faint);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.week-jump input {
+  min-height: 36px;
+  padding: 6px 9px;
+  border-color: rgba(217, 151, 22, .32);
+  border-radius: 10px;
+  background: linear-gradient(145deg, #fff, #f8f0e3);
+  color: var(--text);
+  box-shadow: var(--shadow-soft), inset 1px 1px 0 rgba(255,255,255,.95);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.week-jump input:hover { border-color: var(--accent); }
 .view-switch {
   display: inline-flex;
   flex: none;
@@ -396,25 +450,42 @@ select:hover, input:hover, textarea:hover { border-color: #c6beb3; }
 .more-lessons:hover { text-decoration: underline; }
 .mobile-dots { display: none; }
 
-/* В месяце 5–7 уроков должны помещаться в ячейку без скрытия. */
-.day-cell.is-crowded { padding: 3px 4px; }
-.day-cell.is-crowded .day-header { height: 20px; }
-.day-cell.is-crowded .day-number { width: 20px; height: 20px; font-size: 10px; }
-.day-cell.is-crowded .day-events { gap: 1px; margin-top: 1px; }
-.day-cell.is-crowded .lesson-chip {
-  min-height: 14px;
-  height: 14px;
+/* В месяце карточки уплотняются уже с третьего урока, чтобы список не обрезался. */
+.day-cell.is-compact { padding: 3px 4px; }
+.day-cell.is-compact .day-header { height: 20px; }
+.day-cell.is-compact .day-number { width: 20px; height: 20px; font-size: 10px; }
+.day-cell.is-compact .day-summary { display: block; color: var(--accent-hover); font-weight: 750; }
+.day-cell.is-compact .day-events { gap: 1px; margin-top: 1px; }
+.day-cell.is-compact .lesson-chip {
+  align-items: center;
+  min-height: 16px;
+  height: 16px;
   gap: 3px;
   padding: 0 3px;
   border-left-width: 3px;
   border-radius: 4px;
-  font-size: 8.5px;
+  font-size: 9px;
   line-height: 1;
 }
-.day-cell.is-crowded .lesson-chip-time { font-weight: 800; }
-.day-cell.is-crowded .lesson-chip-participant-dot { width: 5px; height: 5px; margin-top: 0; align-self: center; }
-.day-cell.is-crowded .lesson-chip-status { display: none; }
-.day-cell.is-crowded .lesson-chip-icons { align-self: center; font-size: 8px; }
+.day-cell.is-compact .lesson-chip-time { font-weight: 800; }
+.day-cell.is-compact .lesson-chip-participant-dot { width: 5px; height: 5px; margin-top: 0; align-self: center; }
+.day-cell.is-compact .lesson-chip-status { display: none; }
+.day-cell.is-compact .lesson-chip-icons { align-self: center; font-size: 8px; }
+
+/* Для 5–7 занятий используется максимально плотная, но кликабельная строка. */
+.day-cell.is-crowded { padding: 2px 3px; }
+.day-cell.is-crowded .day-header { height: 17px; }
+.day-cell.is-crowded .day-number { width: 17px; height: 17px; font-size: 9px; }
+.day-cell.is-crowded .day-events { gap: 0; margin-top: 0; }
+.day-cell.is-crowded .lesson-chip {
+  min-height: 11px;
+  height: 11px;
+  padding: 0 2px;
+  border-left-width: 2px;
+  font-size: 7.8px;
+}
+.day-cell.is-crowded .lesson-chip-participant-dot { display: none; }
+.day-cell.is-crowded .lesson-chip-icons { font-size: 7px; }
 
 /* В недельном режиме карточки остаются полными и читаемыми. */
 .month-grid.is-week-view .day-cell { padding: 8px; }
@@ -475,6 +546,7 @@ select:hover, input:hover, textarea:hover { border-color: #c6beb3; }
 .payment-paid { border-color: rgba(112, 173, 88, .45); background: rgba(112, 173, 88, .1); color: #397b2f; }
 .payment-unpaid { border-color: rgba(239, 77, 73, .35); background: rgba(239, 77, 73, .07); color: #c23a36; }
 .payment-not_required { background: #f4f1eb; color: var(--text-muted); }
+.payment-extra { margin: 0; padding: 9px 10px; border-radius: 9px; background: #f6f0e7; color: var(--text-muted); font-size: 11px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .homework-copy { margin: 0; color: var(--text-muted); white-space: pre-wrap; overflow-wrap: anywhere; }
 .homework-copy.is-empty { color: var(--text-faint); font-style: italic; }
 .recurrence-copy, .moved-copy { margin: 0; color: var(--text-muted); }
@@ -523,6 +595,7 @@ select:hover, input:hover, textarea:hover { border-color: #c6beb3; }
 }
 .field { display: grid; align-content: start; gap: 6px; color: var(--text-muted); font-size: 12px; }
 .field > span b { color: var(--accent); }
+.field-note { color: var(--text-faint); font-size: 10px; line-height: 1.25; }
 .field-wide { grid-column: 1 / -1; }
 .field-error { min-height: 0; color: var(--cancelled); }
 .field.has-error input, .field.has-error select { border-color: var(--cancelled); }
@@ -918,7 +991,27 @@ textarea:focus {
   backdrop-filter: blur(10px);
 }
 
-@media (max-width: 1439px) {
+@media (min-width: 900px) and (max-width: 1599px) {
+  .topbar {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas: "title clocks add" "months months months";
+    gap: 8px 15px;
+    min-height: 146px;
+    padding-block: 11px;
+  }
+  .title-block { grid-area: title; }
+  .month-controls { grid-area: months; }
+  .clock-zone { grid-area: clocks; }
+  .add-lesson-button { grid-area: add; }
+}
+
+@media (min-width: 900px) and (max-width: 1439px) {
+  .app-shell.has-detail { grid-template-columns: var(--sidebar-width) minmax(0, 1fr) 0; }
+  .lesson-drawer { position: fixed; inset: 0 0 0 auto; z-index: 40; width: min(var(--detail-width), 92vw); transform: translateX(102%); opacity: 1; pointer-events: none; box-shadow: var(--shadow); transition: transform 160ms ease; }
+  .app-shell.has-detail .lesson-drawer { transform: translateX(0); pointer-events: auto; }
+}
+
+@media (max-width: 899px) {
   .app-shell, .app-shell.has-detail { grid-template-columns: minmax(0, 1fr) 0; }
   .sidebar { position: fixed; inset: 0 auto 0 0; width: var(--sidebar-width); transform: translateX(-102%); box-shadow: var(--shadow); transition: transform 160ms ease; }
   .sidebar.is-open { transform: translateX(0); }
@@ -931,13 +1024,17 @@ textarea:focus {
   .topbar { grid-template-columns: minmax(0,1fr) auto auto; grid-template-areas: "title clocks add" "months months months"; min-height: 136px; padding-block: 10px; }
   .title-block { grid-area: title; }
   .month-controls { grid-area: months; }
+  .week-jump { margin-left: auto; }
   .clock-zone { grid-area: clocks; }
   .add-lesson-button { grid-area: add; min-width: 46px; width: 46px; padding: 0; }
   .add-lesson-button span { display: none; }
-  .app-shell, .app-shell.has-detail { display: block; }
   .main-view { height: 100dvh; }
   .lesson-drawer { position: fixed; inset: 0 0 0 auto; z-index: 40; width: min(var(--detail-width), 92vw); transform: translateX(102%); opacity: 1; pointer-events: none; box-shadow: var(--shadow); transition: transform 160ms ease; }
   .app-shell.has-detail .lesson-drawer { transform: translateX(0); pointer-events: auto; }
+}
+
+@media (max-width: 899px) {
+  .app-shell, .app-shell.has-detail { display: block; }
 }
 
 @media (max-width: 767px) {
@@ -948,6 +1045,7 @@ textarea:focus {
   .topbar { min-height: 210px; }
   .month-controls { flex-wrap: wrap; justify-content: space-between; }
   .month-controls h2 { flex: 1 0 100%; min-width: 0; order: -2; margin-left: 0; font-size: 17px; }
+  .week-jump { flex: 1 0 155px; order: 3; margin-left: 0; }
   .view-switch { order: -1; padding: 2px; }
   .view-switch button { min-height: 30px; padding-inline: 8px; font-size: 10px; }
   .today-button { min-height: 36px; padding-inline: 10px; font-size: 12px; }
@@ -997,10 +1095,10 @@ textarea:focus {
   .lesson-chip { min-height: 20px; padding-block: 1px; font-size: 10px; }
   .day-events { gap: 2px; }
   .day-cell.is-crowded { padding: 2px 3px; }
-  .day-cell.is-crowded .day-header { height: 17px; }
-  .day-cell.is-crowded .day-number { width: 17px; height: 17px; font-size: 9px; }
+  .day-cell.is-crowded .day-header { height: 15px; }
+  .day-cell.is-crowded .day-number { width: 15px; height: 15px; font-size: 8px; }
   .day-cell.is-crowded .day-events { gap: 0; margin-top: 0; }
-  .day-cell.is-crowded .lesson-chip { min-height: 11px; height: 11px; padding: 0 2px; font-size: 7.5px; }
+  .day-cell.is-crowded .lesson-chip { min-height: 10px; height: 10px; padding: 0 2px; font-size: 7px; }
   .day-cell.is-crowded .lesson-chip-participant-dot { display: none; }
   .month-grid.is-week-view .lesson-chip { min-height: 32px; padding-block: 3px; font-size: 11px; }
   .month-grid.is-week-view .day-events { gap: 4px; }

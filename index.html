@@ -4,8 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#fbfaf7">
-  <title>Календарь учителя</title>
+  <title>Lilia Penskikh · Teacher Calendar</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="payments.css">
+  <link rel="stylesheet" href="week-copy.css">
 </head>
 <body>
   <div class="app-shell" id="appShell">
@@ -21,13 +23,17 @@
       </div>
 
       <nav class="primary-nav" aria-label="Основные разделы">
-        <button class="nav-item is-active" type="button">
+        <button class="nav-item is-active" id="calendarNavButton" type="button">
           <svg viewBox="0 0 24 24"><path d="M6 3v3M18 3v3M4 9h16M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/></svg>
           Календарь
         </button>
         <button class="nav-item" id="manageParticipantsButton" type="button">
           <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           Ученики и группы
+        </button>
+        <button class="nav-item" id="paymentsNavButton" type="button">
+          <svg viewBox="0 0 24 24"><path d="M4 6h16v13H4zM4 10h16M8 15h4M17 15h.01"/></svg>
+          Оплата
         </button>
       </nav>
 
@@ -85,6 +91,14 @@
         <div class="legend"><i class="missed"></i><span>Пропущено</span></div>
       </section>
 
+      <div class="teacher-profile" aria-label="Профиль преподавателя">
+        <span class="teacher-avatar" aria-hidden="true">LP</span>
+        <span class="teacher-profile-copy">
+          <small>Преподаватель</small>
+          <strong>Lilia Penskikh</strong>
+        </span>
+      </div>
+
       <div class="sidebar-data-actions">
         <button class="quiet-button" id="exportButton" type="button">
           <svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2"/></svg>
@@ -102,8 +116,8 @@
       </div>
     </aside>
 
-    <main class="main-view">
-      <header class="topbar">
+    <main class="main-view" id="mainView">
+      <header class="topbar" id="calendarTopbar">
         <div class="title-block">
           <button class="icon-button sidebar-open" id="sidebarOpen" type="button" aria-label="Открыть меню">
             <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
@@ -120,6 +134,10 @@
             <button id="weekViewButton" type="button" aria-pressed="false">Неделя</button>
           </div>
           <button class="secondary-button today-button" id="todayButton" type="button">Сегодня</button>
+          <button class="secondary-button copy-week-button" id="copyWeekButton" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3v3M16 3v3M5 8h14M6 5h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Zm3 7h6M12 11v6"/></svg>
+            <span>Копировать неделю</span>
+          </button>
           <button class="icon-button" id="prevMonthButton" type="button" aria-label="Предыдущий месяц">
             <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
           </button>
@@ -127,6 +145,10 @@
             <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
           </button>
           <h2 id="monthTitle">—</h2>
+          <label class="week-jump" for="weekPicker">
+            <span>Неделя для просмотра</span>
+            <input id="weekPicker" type="week" aria-label="Выбрать неделю для просмотра">
+          </label>
         </div>
 
         <div class="clock-zone">
@@ -153,11 +175,56 @@
         </button>
       </header>
 
-      <section class="calendar-panel" aria-label="Месячный календарь">
+      <section class="calendar-panel" id="calendarPanel" aria-label="Месячный календарь">
         <div class="weekday-row" aria-hidden="true">
           <span>ПН</span><span>ВТ</span><span>СР</span><span>ЧТ</span><span>ПТ</span><span>СБ</span><span>ВС</span>
         </div>
         <div class="month-grid" id="monthGrid" role="grid" aria-label="Дни месяца"></div>
+      </section>
+
+      <section class="payment-panel" id="paymentPanel" aria-label="Учёт оплаты" hidden>
+        <header class="payment-header">
+          <div class="payment-title-block">
+            <button class="icon-button sidebar-open payment-sidebar-open" id="paymentSidebarOpen" type="button" aria-label="Открыть меню">
+              <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+            </button>
+            <div><p class="eyebrow">Финансы</p><h1>Оплата занятий</h1></div>
+          </div>
+          <div class="payment-header-actions">
+            <button class="secondary-button" id="exportPaymentsButton" type="button">Экспортировать общую таблицу</button>
+            <button class="primary-button" id="createReportButton" type="button">Сформировать отчёт</button>
+          </div>
+        </header>
+
+        <div class="payment-content">
+          <div class="payment-toolbar">
+            <label class="field"><span>Ученик или группа</span><select id="paymentParticipantFilter"></select></label>
+            <label class="field"><span>Месяц и год</span><input id="paymentMonthFilter" type="month"></label>
+          </div>
+
+          <div class="payment-summary-grid" aria-label="Итоги оплаты">
+            <article class="finance-card accrued"><span>Начислено</span><strong id="paymentAccrued">0 ₽</strong><small>Только проведённые</small></article>
+            <article class="finance-card paid"><span>Оплачено</span><strong id="paymentPaid">0 ₽</strong><small>Проведённые и оплаченные</small></article>
+            <article class="finance-card due"><span>Осталось оплатить</span><strong id="paymentDue">0 ₽</strong><small id="paymentPlannedNote">Будущие уроки не включены</small></article>
+          </div>
+
+          <div class="payment-table-card">
+            <div class="payment-table-heading"><div><h2>Занятия</h2><p id="paymentTableCaption">—</p></div><span id="paymentLessonCount">0 занятий</span></div>
+            <div class="payment-table-scroll">
+              <table class="payment-table">
+                <thead><tr><th>Ученик</th><th>Дата</th><th>Время</th><th>Мин.</th><th>Статус</th><th>Стоимость</th><th>Оплата</th><th>Дата оплаты</th><th>Комментарий</th><th>Действия</th></tr></thead>
+                <tbody id="paymentTableBody"></tbody>
+              </table>
+            </div>
+            <p class="empty-list" id="paymentEmpty" hidden>За выбранный период занятий не найдено.</p>
+          </div>
+
+          <section class="report-history-card">
+            <div class="payment-table-heading"><div><h2>История отчётов</h2><p>Снимки уже сформированных родительских отчётов</p></div><span id="reportHistoryCount">0 отчётов</span></div>
+            <div class="report-history-list" id="reportHistoryList"></div>
+            <p class="empty-list" id="reportHistoryEmpty">История пока пуста.</p>
+          </section>
+        </div>
       </section>
     </main>
 
@@ -169,6 +236,97 @@
   </div>
 
   <div class="page-overlay" id="pageOverlay" hidden></div>
+
+  <dialog class="app-dialog week-copy-dialog" id="weekCopyDialog">
+    <div class="dialog-header">
+      <div>
+        <p class="eyebrow">Расписание</p>
+        <h2 id="weekCopyDialogTitle">Копирование расписания</h2>
+      </div>
+      <button class="icon-button dialog-close" id="weekCopyClose" type="button" aria-label="Закрыть">
+        <svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+
+    <section class="week-copy-step" id="weekCopySelectStep">
+      <div class="week-copy-weeks">
+        <div class="week-picker-card">
+          <span>Исходная неделя</span>
+          <div class="week-picker-controls">
+            <button class="icon-button" id="copySourcePrev" type="button" aria-label="Предыдущая исходная неделя">←</button>
+            <strong id="copySourceLabel">—</strong>
+            <button class="icon-button" id="copySourceNext" type="button" aria-label="Следующая исходная неделя">→</button>
+          </div>
+        </div>
+        <div class="week-copy-direction" aria-hidden="true">→</div>
+        <div class="week-picker-card">
+          <span>Неделя назначения</span>
+          <div class="week-picker-controls">
+            <button class="icon-button" id="copyTargetPrev" type="button" aria-label="Предыдущая неделя назначения">←</button>
+            <strong id="copyTargetLabel">—</strong>
+            <button class="icon-button" id="copyTargetNext" type="button" aria-label="Следующая неделя назначения">→</button>
+          </div>
+        </div>
+      </div>
+      <p class="week-copy-error" id="copyWeekError" hidden></p>
+
+      <div class="week-copy-toolbar">
+        <label class="field">
+          <span>Ученик или группа</span>
+          <select id="copyParticipantFilter"><option value="">Все ученики и группы</option></select>
+        </label>
+        <div class="week-copy-quick-actions" aria-label="Быстрый выбор занятий">
+          <button class="text-button" id="copySelectAll" type="button">Выбрать все</button>
+          <button class="text-button" id="copySelectNone" type="button">Снять выделение</button>
+          <button class="text-button" id="copyCompletedOnly" type="button">Только проведённые</button>
+          <button class="text-button" id="copyScheduledOnly" type="button">Только запланированные</button>
+        </div>
+      </div>
+
+      <div class="week-copy-list-heading">
+        <div><strong>Занятия исходной недели</strong><span id="copySelectionCount">0 выбрано</span></div>
+        <span>Выберите, что перенести в новую неделю</span>
+      </div>
+      <div class="week-copy-lesson-list" id="copyLessonList"></div>
+
+      <div class="week-copy-options">
+        <label class="check-row"><input id="copyHomeworkOption" type="checkbox"><span class="custom-check" aria-hidden="true"></span><span>Копировать домашнее задание</span></label>
+        <label class="check-row"><input id="copyFormatNoteOption" type="checkbox" checked><span class="custom-check" aria-hidden="true"></span><span>Копировать заметку о формате</span></label>
+      </div>
+      <div class="dialog-actions">
+        <button class="secondary-button" id="copyCancelSelect" type="button">Отмена</button>
+        <button class="primary-button" id="copyPreviewButton" type="button">Проверить расписание</button>
+      </div>
+    </section>
+
+    <section class="week-copy-step" id="weekCopyPreviewStep" hidden>
+      <div class="week-copy-preview-heading">
+        <div><p class="eyebrow">Предварительный просмотр</p><h3>Проверьте расписание</h3></div>
+        <p id="copyConflictNotice" hidden>В целевой неделе найдены пересечения</p>
+      </div>
+      <div class="week-copy-preview-list" id="copyPreviewList"></div>
+      <div class="week-copy-summary" aria-label="Итоги копирования">
+        <div><span>Выбрано</span><strong id="copySummarySelected">0</strong></div>
+        <div><span>Будет создано</span><strong id="copySummaryCreate">0</strong></div>
+        <div><span>Будет пропущено</span><strong id="copySummarySkip">0</strong></div>
+        <div><span>Конфликтов</span><strong id="copySummaryConflict">0</strong></div>
+      </div>
+      <div class="dialog-actions">
+        <button class="secondary-button" id="copyPreviewBack" type="button">Назад</button>
+        <button class="secondary-button" id="copyCancelPreview" type="button">Отмена</button>
+        <button class="primary-button" id="copyConfirmButton" type="button">Скопировать расписание</button>
+      </div>
+    </section>
+
+    <section class="week-copy-history">
+      <div class="week-copy-history-heading">
+        <div><strong>История копирования</strong><span>Последние 10 операций</span></div>
+        <span id="copyHistoryCount">0 операций</span>
+      </div>
+      <div id="copyHistoryList" class="week-copy-history-list"></div>
+      <p class="empty-list" id="copyHistoryEmpty">История пока пуста.</p>
+    </section>
+  </dialog>
 
   <dialog class="app-dialog lesson-dialog" id="lessonDialog">
     <form id="lessonForm" novalidate>
@@ -217,6 +375,14 @@
             <option value="120">120 минут</option>
             <option value="custom">Другая</option>
           </select>
+        </label>
+        <label class="field">
+          <span>Исходный часовой пояс</span>
+          <select id="lessonSourceTimezone" name="sourceOffsetMinutes">
+            <option value="300">Екатеринбург · UTC+5</option>
+            <option value="180">Москва · UTC+3</option>
+          </select>
+          <small class="field-note">Дата и время урока вводятся в этом поясе</small>
         </label>
         <label class="field custom-duration-field" id="customDurationField" hidden>
           <span>Минуты</span>
@@ -504,11 +670,74 @@
     </div>
   </dialog>
 
+  <dialog class="app-dialog report-dialog" id="reportDialog">
+    <form id="reportForm">
+      <div class="dialog-header">
+        <div><p class="eyebrow">Родительский отчёт</p><h2>Сформировать отчёт</h2></div>
+        <button class="icon-button dialog-close" id="reportDialogClose" type="button" aria-label="Закрыть"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+      </div>
+      <div class="form-grid report-settings-grid">
+        <label class="field"><span>Ученик или группа <b>*</b></span><select id="reportParticipant" required></select></label>
+        <label class="field"><span>Тип отчёта</span><select id="reportType"><option value="month">За месяц</option><option value="package4">За 4 занятия</option><option value="package10">За 10 занятий</option><option value="manual">Выбрать занятия вручную</option></select></label>
+        <label class="field field-wide" id="reportMonthField"><span>Отчётный месяц</span><input id="reportMonth" type="month"></label>
+        <label class="field field-wide" id="reportStartField" hidden><span>Первое занятие или начальная дата</span><input id="reportStartDate" type="date"></label>
+      </div>
+      <section class="manual-report-controls" id="manualReportControls" hidden>
+        <div class="manual-filter-grid">
+          <label class="field"><span>С даты</span><input id="manualStartDate" type="date"></label>
+          <label class="field"><span>По дату</span><input id="manualEndDate" type="date"></label>
+          <label class="field"><span>Статус занятия</span><select id="manualLessonStatus"><option value="">Все</option><option value="completed">Проведено</option><option value="scheduled">Запланировано</option><option value="cancelled">Отменено</option><option value="moved">Перенесено</option><option value="missed">Пропущено</option></select></label>
+          <label class="field"><span>Статус оплаты</span><select id="manualPaymentStatus"><option value="">Любой</option><option value="paid">Оплачено</option><option value="unpaid">Не оплачено</option></select></label>
+        </div>
+        <div class="inline-actions"><button class="secondary-button" id="manualSelectAll" type="button">Выбрать все</button><button class="secondary-button" id="manualSelectNone" type="button">Снять выделение</button><button class="secondary-button" id="manualCompletedOnly" type="button">Только проведённые</button></div>
+      </section>
+      <section class="report-shortage" id="reportShortage" hidden>
+        <strong id="reportShortageText"></strong>
+        <div class="inline-actions"><button class="secondary-button" id="changeReportStart" type="button">Изменить дату начала</button><button class="primary-button" id="useAvailableLessons" type="button">Сформировать по доступным занятиям</button><button class="text-button" id="cancelShortReport" type="button">Отмена</button></div>
+      </section>
+      <section class="report-selection-section">
+        <div class="report-selection-heading"><strong>Занятия в отчёте</strong><span id="reportSelectionCount">0 выбрано</span></div>
+        <div class="report-selection-list" id="reportSelectionList"></div>
+      </section>
+      <div class="dialog-actions">
+        <button class="secondary-button" id="reportCancel" type="button">Отмена</button>
+        <button class="primary-button" id="reportPreviewButton" type="submit">Проверить отчёт</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="app-dialog report-preview-dialog" id="reportPreviewDialog">
+    <div class="dialog-header">
+      <div><p class="eyebrow">Предварительный просмотр</p><h2>Проверьте отчёт</h2></div>
+      <button class="icon-button dialog-close" id="reportPreviewClose" type="button" aria-label="Закрыть"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+    </div>
+    <div class="report-preview-content" id="reportPreviewContent"></div>
+    <div class="dialog-actions"><button class="secondary-button" id="reportPreviewBack" type="button">Назад</button><button class="primary-button" id="printReportButton" type="button">Сформировать PDF</button></div>
+  </dialog>
+
+  <dialog class="app-dialog small-dialog" id="csvDialog">
+    <form id="csvForm">
+      <div class="dialog-header">
+        <div><p class="eyebrow">Личный учёт</p><h2>Экспортировать общую таблицу</h2></div>
+        <button class="icon-button dialog-close" id="csvDialogClose" type="button" aria-label="Закрыть"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+      </div>
+      <fieldset class="scope-card csv-scope-card"><legend>Период CSV</legend><label class="radio-row"><input type="radio" name="csvScope" value="month" checked> Выбранный месяц</label><label class="radio-row"><input type="radio" name="csvScope" value="range"> Произвольный период</label></fieldset>
+      <div class="form-grid">
+        <label class="field field-wide" id="csvMonthField"><span>Месяц</span><input id="csvMonth" type="month"></label>
+        <label class="field" id="csvStartField" hidden><span>С даты</span><input id="csvStartDate" type="date"></label>
+        <label class="field" id="csvEndField" hidden><span>По дату</span><input id="csvEndDate" type="date"></label>
+      </div>
+      <div class="dialog-actions"><button class="secondary-button" id="csvCancel" type="button">Отмена</button><button class="primary-button" type="submit">Скачать CSV</button></div>
+    </form>
+  </dialog>
+
   <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
 
   <script src="js/dates.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/recurrence.js"></script>
+  <script src="js/payments.js"></script>
+  <script src="js/week-copy.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

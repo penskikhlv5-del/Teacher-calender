@@ -80,6 +80,27 @@
     });
   }
 
+  function weekInputValue(key) {
+    const monday = mondayOf(key);
+    const thursday = addDays(monday, 3);
+    const thursdayParts = parseDateKey(thursday);
+    if (!thursdayParts) return "";
+    const weekYear = thursdayParts.year;
+    const firstMonday = mondayOf(`${weekYear}-01-04`);
+    const weekNumber = Math.floor(diffDays(firstMonday, monday) / 7) + 1;
+    return `${weekYear}-W${pad(weekNumber)}`;
+  }
+
+  function mondayFromWeekInput(value) {
+    const match = /^(\d{4})-W(\d{2})$/.exec(String(value || ""));
+    if (!match) return "";
+    const weekYear = Number(match[1]);
+    const weekNumber = Number(match[2]);
+    if (weekNumber < 1 || weekNumber > 53) return "";
+    const monday = addDays(mondayOf(`${weekYear}-01-04`), (weekNumber - 1) * 7);
+    return weekInputValue(monday) === value ? monday : "";
+  }
+
   function partsFromUtc(isoOrMs, offsetMinutes) {
     const sourceMs = typeof isoOrMs === "number" ? isoOrMs : Date.parse(isoOrMs);
     const shifted = new Date(sourceMs + Number(offsetMinutes || 0) * 60_000);
@@ -192,6 +213,8 @@
     mondayOf,
     getMonthGrid,
     getWeekGrid,
+    weekInputValue,
+    mondayFromWeekInput,
     partsFromUtc,
     dateKeyFromUtc,
     timeFromUtc,

@@ -24,8 +24,11 @@
       lessonStatus: series.defaultLessonStatus || "scheduled",
       paymentStatus: series.defaultPaymentStatus || "unpaid",
       paymentAmount: series.defaultPaymentAmount == null || series.defaultPaymentAmount === "" ? null : Number(series.defaultPaymentAmount),
+      paymentDate: series.defaultPaymentDate || "",
+      paymentComment: series.defaultPaymentComment || "",
       homework: series.defaultHomework || "",
       movedFromUtc: null,
+      originalLessonId: null,
       recurring: true,
       recurrence: series.recurrence
     };
