@@ -327,7 +327,7 @@
 
       const dayLessons = grouped.get(cell.key) || [];
       if (!isWeekView && dayLessons.length >= 3) day.classList.add("is-compact");
-      if (!isWeekView && dayLessons.length >= 5) day.classList.add("is-crowded");
+      if (!isWeekView && dayLessons.length >= 4) day.classList.add("is-crowded");
       if (dayLessons.length) {
         day.setAttribute("aria-label", `${D.formatDateLong(cell.key, true)}. Уроков: ${dayLessons.length}`);
         const summary = document.createElement("span");

@@ -472,7 +472,7 @@ select:hover, input:hover, textarea:hover { border-color: #c6beb3; }
 .day-cell.is-compact .lesson-chip-status { display: none; }
 .day-cell.is-compact .lesson-chip-icons { align-self: center; font-size: 8px; }
 
-/* Для 5–7 занятий используется максимально плотная, но кликабельная строка. */
+/* Для 4–7 занятий используется максимально плотная, но кликабельная строка. */
 .day-cell.is-crowded { padding: 2px 3px; }
 .day-cell.is-crowded .day-header { height: 17px; }
 .day-cell.is-crowded .day-number { width: 17px; height: 17px; font-size: 9px; }
