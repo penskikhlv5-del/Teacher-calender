@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#fbfaf7">
+  <title>Календарь учителя</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell" id="appShell">
+    <aside class="sidebar" id="sidebar" aria-label="Навигация и фильтры">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M6 3v3M18 3v3M4.5 8.5h15M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/></svg>
+        </span>
+        <span>Teacher Calendar</span>
+        <button class="icon-button sidebar-close" id="sidebarClose" type="button" aria-label="Закрыть меню">
+          <svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
+
+      <nav class="primary-nav" aria-label="Основные разделы">
+        <button class="nav-item is-active" type="button">
+          <svg viewBox="0 0 24 24"><path d="M6 3v3M18 3v3M4 9h16M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/></svg>
+          Календарь
+        </button>
+        <button class="nav-item" id="manageParticipantsButton" type="button">
+          <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Ученики и группы
+        </button>
+      </nav>
+
+      <section class="sidebar-section filters-section">
+        <div class="section-heading-row">
+          <h2>Фильтры</h2>
+          <button class="text-button" id="clearFiltersButton" type="button">Сбросить</button>
+        </div>
+        <label class="check-row check-row-all">
+          <input id="allParticipantsFilter" type="checkbox" checked>
+          <span class="custom-check" aria-hidden="true"></span>
+          <span>Все ученики и группы</span>
+        </label>
+        <div class="participant-filters" id="participantFilters"></div>
+
+        <div class="filter-grid">
+          <label>
+            <span>Тип</span>
+            <select id="typeFilter">
+              <option value="">Все</option>
+              <option value="student">Ученики</option>
+              <option value="group">Группы</option>
+            </select>
+          </label>
+          <label>
+            <span>Статус</span>
+            <select id="statusFilter">
+              <option value="">Все</option>
+              <option value="scheduled">Запланировано</option>
+              <option value="completed">Проведено</option>
+              <option value="cancelled_student">Отменено учеником</option>
+              <option value="cancelled_teacher">Отменено преподавателем</option>
+              <option value="moved">Перенесено</option>
+              <option value="missed">Пропущено</option>
+            </select>
+          </label>
+          <label>
+            <span>Оплата</span>
+            <select id="paymentFilter">
+              <option value="">Любая</option>
+              <option value="unpaid">Не оплачено</option>
+              <option value="paid">Оплачено</option>
+              <option value="not_required">Не требуется</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section class="sidebar-section legend-section">
+        <h2>Статусы</h2>
+        <div class="legend"><i class="scheduled"></i><span>Запланировано</span></div>
+        <div class="legend"><i class="completed"></i><span>Проведено</span></div>
+        <div class="legend"><i class="cancelled"></i><span>Отменено</span></div>
+        <div class="legend"><i class="moved"></i><span>Перенесено</span></div>
+        <div class="legend"><i class="missed"></i><span>Пропущено</span></div>
+      </section>
+
+      <div class="sidebar-data-actions">
+        <button class="quiet-button" id="exportButton" type="button">
+          <svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2"/></svg>
+          Экспорт
+        </button>
+        <button class="quiet-button" id="importButton" type="button">
+          <svg viewBox="0 0 24 24"><path d="M12 21V9M7 14l5-5 5 5M5 3h14a2 2 0 0 1 2 2v3M3 8V5a2 2 0 0 1 2-2"/></svg>
+          Импорт
+        </button>
+        <button class="quiet-button danger-quiet" id="resetButton" type="button" title="Удалить все локальные данные">
+          <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 15H6L5 6M10 11v6M14 11v6"/></svg>
+          Сброс
+        </button>
+        <input id="importFileInput" type="file" accept="application/json,.json" hidden>
+      </div>
+    </aside>
+
+    <main class="main-view">
+      <header class="topbar">
+        <div class="title-block">
+          <button class="icon-button sidebar-open" id="sidebarOpen" type="button" aria-label="Открыть меню">
+            <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+          </button>
+          <div>
+            <p class="eyebrow">Расписание</p>
+            <h1>Календарь занятий</h1>
+          </div>
+        </div>
+
+        <div class="month-controls" aria-label="Навигация по календарю">
+          <div class="view-switch" role="group" aria-label="Режим календаря">
+            <button id="monthViewButton" class="is-active" type="button" aria-pressed="true">Месяц</button>
+            <button id="weekViewButton" type="button" aria-pressed="false">Неделя</button>
+          </div>
+          <button class="secondary-button today-button" id="todayButton" type="button">Сегодня</button>
+          <button class="icon-button" id="prevMonthButton" type="button" aria-label="Предыдущий месяц">
+            <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <button class="icon-button" id="nextMonthButton" type="button" aria-label="Следующий месяц">
+            <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
+          <h2 id="monthTitle">—</h2>
+        </div>
+
+        <div class="clock-zone">
+          <div class="clock-block adjustable-clock">
+            <span>Моё время</span>
+            <div class="clock-controls">
+              <button id="timezoneLeft" type="button" aria-label="Уменьшить часовой пояс на один час">←</button>
+              <strong id="localClock">—</strong>
+              <button id="timezoneRight" type="button" aria-label="Увеличить часовой пояс на один час">→</button>
+            </div>
+            <small id="timezoneLabel">Екатеринбург · UTC+5</small>
+          </div>
+          <div class="clock-divider" aria-hidden="true"></div>
+          <div class="clock-block moscow-clock">
+            <span>МСК</span>
+            <strong id="moscowClock">—</strong>
+            <small>Москва · UTC+3</small>
+          </div>
+        </div>
+
+        <button class="primary-button add-lesson-button" id="addLessonButton" type="button">
+          <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+          <span>Добавить урок</span>
+        </button>
+      </header>
+
+      <section class="calendar-panel" aria-label="Месячный календарь">
+        <div class="weekday-row" aria-hidden="true">
+          <span>ПН</span><span>ВТ</span><span>СР</span><span>ЧТ</span><span>ПТ</span><span>СБ</span><span>ВС</span>
+        </div>
+        <div class="month-grid" id="monthGrid" role="grid" aria-label="Дни месяца"></div>
+      </section>
+    </main>
+
+    <aside class="lesson-drawer" id="lessonDrawer" aria-label="Карточка урока" aria-hidden="true">
+      <div class="drawer-empty">
+        <p>Выберите урок, чтобы увидеть подробности.</p>
+      </div>
+    </aside>
+  </div>
+
+  <div class="page-overlay" id="pageOverlay" hidden></div>
+
+  <dialog class="app-dialog lesson-dialog" id="lessonDialog">
+    <form id="lessonForm" novalidate>
+      <div class="dialog-header">
+        <div>
+          <p class="eyebrow">Расписание</p>
+          <h2 id="lessonDialogTitle">Новый урок</h2>
+        </div>
+        <button class="icon-button dialog-close" type="button" data-close-dialog="lessonDialog" aria-label="Закрыть">
+          <svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
+
+      <div class="form-grid">
+        <div class="form-section-title">
+          <strong>Основные данные урока</strong>
+          <span>Ученик, курс, дата и время занятия</span>
+        </div>
+        <label class="field field-wide">
+          <span>Ученик или группа <b>*</b></span>
+          <select id="lessonParticipant" name="participantId" required></select>
+          <small class="field-error" data-error-for="participantId"></small>
+        </label>
+        <label class="field field-wide">
+          <span>Курс / предмет <b>*</b></span>
+          <input id="lessonCourse" name="course" type="text" maxlength="120" required placeholder="Например, английский · Life Vision">
+          <small class="field-error" data-error-for="course"></small>
+        </label>
+        <label class="field">
+          <span>Дата <b>*</b></span>
+          <input id="lessonDate" name="date" type="date" required>
+          <small class="field-error" data-error-for="date"></small>
+        </label>
+        <label class="field">
+          <span>Время <b>*</b></span>
+          <input id="lessonTime" name="time" type="time" step="300" required>
+          <small class="field-error" data-error-for="time"></small>
+        </label>
+        <label class="field">
+          <span>Продолжительность</span>
+          <select id="lessonDuration" name="duration">
+            <option value="30">30 минут</option>
+            <option value="45">45 минут</option>
+            <option value="60" selected>60 минут</option>
+            <option value="90">90 минут</option>
+            <option value="120">120 минут</option>
+            <option value="custom">Другая</option>
+          </select>
+        </label>
+        <label class="field custom-duration-field" id="customDurationField" hidden>
+          <span>Минуты</span>
+          <input id="customDuration" name="customDuration" type="number" min="15" max="480" step="5" value="60">
+          <small class="field-error" data-error-for="duration"></small>
+        </label>
+        <label class="field">
+          <span>Формат</span>
+          <select id="lessonFormat" name="format">
+            <option value="online">Онлайн</option>
+            <option value="offline">Очно</option>
+            <option value="hybrid">Смешанный</option>
+          </select>
+        </label>
+        <label class="field field-wide">
+          <span>Ссылка или заметка о формате</span>
+          <input id="lessonFormatNote" name="formatNote" type="text" maxlength="300" placeholder="Например, ссылка на видеозвонок">
+        </label>
+        <div class="form-section-title lesson-result-title">
+          <strong>Результат, домашнее задание и оплата</strong>
+          <span>Здесь отмечается, проведён ли урок, какое задано ДЗ и оплачен ли урок</span>
+        </div>
+        <label class="field">
+          <span>Статус занятия</span>
+          <select id="lessonStatus" name="lessonStatus">
+            <option value="scheduled">Запланировано</option>
+            <option value="completed">Проведено</option>
+            <option value="cancelled_student">Отменено учеником</option>
+            <option value="cancelled_teacher">Отменено преподавателем</option>
+            <option value="moved">Перенесено</option>
+            <option value="missed">Пропущено</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Статус оплаты</span>
+          <select id="lessonPayment" name="paymentStatus">
+            <option value="unpaid">Не оплачено</option>
+            <option value="paid">Оплачено</option>
+            <option value="not_required">Не требуется</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Стоимость урока, ₽</span>
+          <input id="lessonPaymentAmount" name="paymentAmount" type="number" min="0" max="1000000" step="50" inputmode="decimal" placeholder="1400">
+          <small class="field-error" data-error-for="paymentAmount"></small>
+        </label>
+        <label class="field field-wide">
+          <span>Домашнее задание</span>
+          <textarea id="lessonHomework" name="homework" rows="4" maxlength="4000" placeholder="Задание, материалы или заметки"></textarea>
+        </label>
+      </div>
+
+      <section class="repeat-card" id="repeatCard">
+        <label class="switch-row">
+          <input id="lessonRepeat" name="repeat" type="checkbox">
+          <span class="switch" aria-hidden="true"></span>
+          <span><strong>Повторяющийся урок</strong><small>Создать серию занятий</small></span>
+        </label>
+        <div class="repeat-fields" id="repeatFields" hidden>
+          <label class="field">
+            <span>Повторять</span>
+            <select id="repeatFrequency" name="repeatFrequency">
+              <option value="weekly">Каждую неделю</option>
+              <option value="biweekly">Раз в две недели</option>
+              <option value="weekdays">По выбранным дням</option>
+              <option value="monthly">Каждый месяц</option>
+            </select>
+          </label>
+          <fieldset class="weekday-picker" id="weekdayPicker" hidden>
+            <legend>Дни недели</legend>
+            <label><input type="checkbox" value="1"><span>Пн</span></label>
+            <label><input type="checkbox" value="2"><span>Вт</span></label>
+            <label><input type="checkbox" value="3"><span>Ср</span></label>
+            <label><input type="checkbox" value="4"><span>Чт</span></label>
+            <label><input type="checkbox" value="5"><span>Пт</span></label>
+            <label><input type="checkbox" value="6"><span>Сб</span></label>
+            <label><input type="checkbox" value="7"><span>Вс</span></label>
+          </fieldset>
+          <div class="repeat-end-row">
+            <label class="radio-row"><input type="radio" name="repeatEnd" value="never" checked> Без даты окончания</label>
+            <label class="radio-row"><input type="radio" name="repeatEnd" value="date"> До даты</label>
+            <input id="repeatUntil" type="date" disabled>
+          </div>
+        </div>
+      </section>
+
+      <fieldset class="scope-card" id="editScopeCard" hidden>
+        <legend>Изменить</legend>
+        <label class="radio-row"><input type="radio" name="editScope" value="one" checked> Только этот урок</label>
+        <label class="radio-row"><input type="radio" name="editScope" value="series"> Всю серию</label>
+      </fieldset>
+
+      <div class="conflict-warning" id="conflictWarning" hidden>
+        <strong>Время пересекается с другим уроком</strong>
+        <span id="conflictWarningText"></span>
+        <label class="check-row"><input id="confirmConflict" type="checkbox"><span class="custom-check"></span><span>Всё равно сохранить</span></label>
+      </div>
+
+      <div class="dialog-actions">
+        <button class="secondary-button" type="button" data-close-dialog="lessonDialog">Отмена</button>
+        <button class="primary-button" type="submit">Сохранить урок</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="app-dialog participants-dialog" id="participantsDialog">
+    <div class="dialog-header">
+      <div>
+        <p class="eyebrow">Справочник</p>
+        <h2>Ученики и группы</h2>
+      </div>
+      <button class="icon-button dialog-close" type="button" data-close-dialog="participantsDialog" aria-label="Закрыть">
+        <svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <div class="participants-layout">
+      <section class="participant-list-column">
+        <div class="participant-toolbar">
+          <input id="participantSearch" type="search" placeholder="Поиск по имени">
+          <select id="participantTypeView" aria-label="Фильтр типа">
+            <option value="">Все</option>
+            <option value="student">Ученики</option>
+            <option value="group">Группы</option>
+            <option value="archived">Архив</option>
+          </select>
+        </div>
+        <div class="participant-card-list" id="participantCardList"></div>
+      </section>
+      <form class="participant-form" id="participantForm" novalidate>
+        <h3 id="participantFormTitle">Новая карточка ученика или группы</h3>
+        <div class="participant-lesson-hint">
+          <strong>Данные конкретного урока</strong>
+          <p>Статус «Проведено/Отменено», фактическое ДЗ и оплата заполняются в карточке урока.</p>
+          <span>Ниже задайте значения по умолчанию, затем нажмите «Далее: назначить урок».</span>
+        </div>
+        <input id="participantEditId" type="hidden">
+        <label class="field">
+          <span>Тип</span>
+          <select id="participantType">
+            <option value="student">Ученик</option>
+            <option value="group">Группа</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Имя или название <b>*</b></span>
+          <input id="participantName" type="text" maxlength="100" required>
+          <small class="field-error" id="participantNameError"></small>
+        </label>
+        <label class="field">
+          <span>Цвет</span>
+          <input id="participantColor" type="color" value="#d97757">
+        </label>
+        <label class="field">
+          <span>Заметка</span>
+          <textarea id="participantNote" rows="4" maxlength="1000"></textarea>
+        </label>
+        <section class="participant-defaults">
+          <div class="participant-defaults-heading">
+            <strong>Настройки урока по умолчанию</strong>
+            <span>Автоматически подставятся при создании занятия</span>
+          </div>
+          <label class="field">
+            <span>Курс / предмет</span>
+            <input id="participantDefaultCourse" type="text" maxlength="120" placeholder="Например, английский · Life Vision">
+          </label>
+          <div class="participant-defaults-grid">
+            <label class="field">
+              <span>Продолжительность</span>
+              <select id="participantDefaultDuration">
+                <option value="30">30 минут</option>
+                <option value="45">45 минут</option>
+                <option value="60" selected>60 минут</option>
+                <option value="90">90 минут</option>
+                <option value="120">120 минут</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Формат</span>
+              <select id="participantDefaultFormat">
+                <option value="online">Онлайн</option>
+                <option value="offline">Очно</option>
+                <option value="hybrid">Смешанный</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Стоимость, ₽</span>
+              <input id="participantDefaultPaymentAmount" type="number" min="0" max="1000000" step="50" placeholder="1400">
+            </label>
+            <label class="field">
+              <span>Оплата по умолчанию</span>
+              <select id="participantDefaultPayment">
+                <option value="unpaid">Не оплачено</option>
+                <option value="paid">Оплачено</option>
+                <option value="not_required">Не требуется</option>
+              </select>
+            </label>
+          </div>
+          <label class="field">
+            <span>Шаблон домашнего задания</span>
+            <textarea id="participantDefaultHomework" rows="3" maxlength="4000" placeholder="Можно оставить пустым и заполнить в конкретном уроке"></textarea>
+          </label>
+        </section>
+        <div class="dialog-actions participant-form-actions">
+          <button class="text-button" id="participantFormReset" type="button">Очистить</button>
+          <button class="primary-button" id="participantSaveAndLesson" type="submit">Далее: назначить урок</button>
+          <button class="secondary-button" id="participantSaveOnly" type="submit">Сохранить без урока</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <dialog class="app-dialog small-dialog" id="moveDialog">
+    <form id="moveForm">
+      <div class="dialog-header">
+        <div><p class="eyebrow">Изменение расписания</p><h2>Перенести урок</h2></div>
+        <button class="icon-button dialog-close" type="button" data-close-dialog="moveDialog" aria-label="Закрыть"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+      </div>
+      <div class="form-grid">
+        <label class="field"><span>Новая дата</span><input id="moveDate" type="date" required></label>
+        <label class="field"><span>Новое время</span><input id="moveTime" type="time" step="300" required></label>
+      </div>
+      <fieldset class="scope-card" id="moveScopeCard" hidden>
+        <legend>Перенести</legend>
+        <label class="radio-row"><input type="radio" name="moveScope" value="one" checked> Только этот урок</label>
+        <label class="radio-row"><input type="radio" name="moveScope" value="series"> Всю серию</label>
+      </fieldset>
+      <div class="dialog-actions">
+        <button class="secondary-button" type="button" data-close-dialog="moveDialog">Отмена</button>
+        <button class="primary-button" type="submit">Перенести</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="app-dialog small-dialog" id="cancelDialog">
+    <form id="cancelForm">
+      <div class="dialog-header">
+        <div><p class="eyebrow">Статус занятия</p><h2>Отменить урок</h2></div>
+        <button class="icon-button dialog-close" type="button" data-close-dialog="cancelDialog" aria-label="Закрыть"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+      </div>
+      <label class="field">
+        <span>Причина отмены</span>
+        <select id="cancelReason">
+          <option value="cancelled_student">Отменено учеником</option>
+          <option value="cancelled_teacher">Отменено преподавателем</option>
+        </select>
+      </label>
+      <fieldset class="scope-card" id="cancelScopeCard" hidden>
+        <legend>Отменить</legend>
+        <label class="radio-row"><input type="radio" name="cancelScope" value="one" checked> Только этот урок</label>
+        <label class="radio-row"><input type="radio" name="cancelScope" value="series"> Всю серию</label>
+      </fieldset>
+      <div class="dialog-actions">
+        <button class="secondary-button" type="button" data-close-dialog="cancelDialog">Назад</button>
+        <button class="danger-button" type="submit">Отменить урок</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="app-dialog small-dialog" id="deleteDialog">
+    <form id="deleteForm">
+      <div class="dialog-header">
+        <div><p class="eyebrow">Необратимое действие</p><h2>Удалить урок</h2></div>
+        <button class="icon-button dialog-close" type="button" data-close-dialog="deleteDialog" aria-label="Закрыть"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+      </div>
+      <p class="dialog-copy" id="deleteDialogCopy"></p>
+      <div class="delete-options" id="deleteOptions">
+        <label><input type="radio" name="deleteScope" value="one" checked><span><strong>Удалить только этот урок</strong><small>Остальные занятия серии сохранятся</small></span></label>
+        <label id="deleteSeriesOption"><input type="radio" name="deleteScope" value="series"><span><strong>Удалить всю серию</strong><small>Исчезнут все занятия этой серии</small></span></label>
+      </div>
+      <div class="dialog-actions">
+        <button class="secondary-button" type="button" data-close-dialog="deleteDialog">Назад</button>
+        <button class="danger-button" type="submit">Удалить</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="app-dialog day-dialog" id="dayDialog">
+    <div class="dialog-header">
+      <div><p class="eyebrow">Занятия дня</p><h2 id="dayDialogTitle">—</h2></div>
+      <button class="icon-button dialog-close" type="button" data-close-dialog="dayDialog" aria-label="Закрыть"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+    </div>
+    <div class="day-lesson-list" id="dayLessonList"></div>
+    <div class="dialog-actions">
+      <button class="primary-button" id="addLessonForDay" type="button">Добавить урок</button>
+    </div>
+  </dialog>
+
+  <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="js/dates.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/recurrence.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
