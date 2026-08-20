@@ -14,7 +14,7 @@
     missed: "Пропущено"
   };
   const PAYMENT_LABELS = { paid: "Оплачено", unpaid: "Не оплачено", not_required: "Не требуется" };
-  const REPORT_LABELS = { month: "За месяц", package4: "Пакет из 4 занятий", package10: "Пакет из 10 занятий", manual: "Выбранные занятия" };
+  const REPORT_LABELS = { month: "За месяц", multi_month: "За несколько месяцев", package4: "Пакет из 4 занятий", package10: "Пакет из 10 занятий", manual: "Выбранные занятия" };
   const MONTHS_NOMINATIVE = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
   const MONTHS_GENITIVE = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
 
@@ -65,8 +65,22 @@
     if (!match) return null;
     const year = Number(match[1]);
     const monthIndex = Number(match[2]) - 1;
+    if (monthIndex < 0 || monthIndex > 11) return null;
     const lastDay = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
     return { year, monthIndex, start: D.dateKey(year, monthIndex, 1), end: D.dateKey(year, monthIndex, lastDay) };
+  }
+  function monthRangeBounds(startValue, endValue) {
+    const first = monthBounds(startValue);
+    const last = monthBounds(endValue);
+    if (!first || !last || first.start > last.end) return null;
+    return { start: first.start, end: last.end, first, last };
+  }
+  function reportDisplayBounds(draft) {
+    if (draft && draft.type === "multi_month") {
+      const range = monthRangeBounds(draft.rangeStartMonth, draft.rangeEndMonth);
+      if (range) return { start: range.start, end: range.end };
+    }
+    return { start: draft && draft.startDate || "", end: draft && draft.endDate || "" };
   }
   function dateFile(key) {
     const parts = D.parseDateKey(key);
@@ -169,7 +183,7 @@
       "paymentPanel", "paymentParticipantFilter", "paymentMonthFilter", "paymentAccrued", "paymentPaid", "paymentDue", "paymentPlannedNote",
       "paymentTableCaption", "paymentLessonCount", "paymentTableBody", "paymentEmpty", "createReportButton", "exportPaymentsButton",
       "reportHistoryCount", "reportHistoryList", "reportHistoryEmpty", "reportDialog", "reportForm", "reportDialogClose", "reportParticipant",
-      "reportType", "reportMonthField", "reportMonth", "reportStartField", "reportStartDate", "manualReportControls", "manualStartDate",
+      "reportType", "reportMonthField", "reportMonth", "reportMonthRangeFields", "reportRangeStartMonth", "reportRangeEndMonth", "reportStartField", "reportStartDate", "manualReportControls", "manualStartDate",
       "manualEndDate", "manualLessonStatus", "manualPaymentStatus", "manualSelectAll", "manualSelectNone", "manualCompletedOnly",
       "reportShortage", "reportShortageText", "changeReportStart", "useAvailableLessons", "cancelShortReport", "reportSelectionCount",
       "reportSelectionList", "reportCancel", "reportPreviewButton", "reportPreviewDialog", "reportPreviewClose", "reportPreviewContent",
@@ -306,6 +320,8 @@
     el.reportParticipant.value = preferred || state().participants[0].id;
     el.reportType.value = "month";
     el.reportMonth.value = el.paymentMonthFilter.value || currentMonthValue();
+    el.reportRangeStartMonth.value = el.reportMonth.value;
+    el.reportRangeEndMonth.value = el.reportMonth.value;
     const bounds = monthBounds(el.reportMonth.value);
     el.reportStartDate.value = bounds ? bounds.start : todayKey();
     el.manualStartDate.value = bounds ? bounds.start : todayKey();
@@ -320,6 +336,7 @@
   function syncReportType(resetSelection) {
     const type = el.reportType.value;
     el.reportMonthField.hidden = type !== "month";
+    el.reportMonthRangeFields.hidden = type !== "multi_month";
     el.reportStartField.hidden = type !== "package4" && type !== "package10";
     el.manualReportControls.hidden = type !== "manual";
     el.reportShortage.hidden = true;
@@ -341,6 +358,10 @@
     if (type === "month") {
       const bounds = monthBounds(el.reportMonth.value);
       if (bounds) candidates = lessonsForRange(state(), bounds.start, bounds.end, state().settings.displayOffsetMinutes).filter(function (lesson) { return lesson.participantId === participantId; });
+      initiallySelected = candidates;
+    } else if (type === "multi_month") {
+      const range = monthRangeBounds(el.reportRangeStartMonth.value, el.reportRangeEndMonth.value);
+      if (range) candidates = lessonsForRange(state(), range.start, range.end, state().settings.displayOffsetMinutes).filter(function (lesson) { return lesson.participantId === participantId; });
       initiallySelected = candidates;
     } else if (type === "package4" || type === "package10") {
       const start = el.reportStartDate.value || todayKey();
@@ -399,9 +420,13 @@
   }
 
   function createDraftFromSelection() {
+    const type = el.reportType.value;
+    if (type === "multi_month" && !monthRangeBounds(el.reportRangeStartMonth.value, el.reportRangeEndMonth.value)) {
+      api.toast("Укажите корректный диапазон месяцев: начальный месяц не должен быть позже конечного", true);
+      return null;
+    }
     const lessons = selectedReportLessons();
     if (!lessons.length) { api.toast("Выберите хотя бы одно занятие", true); return null; }
-    const type = el.reportType.value;
     const required = type === "package4" ? 4 : type === "package10" ? 10 : 0;
     if (required && lessons.length < required && !allowShortPackage) { showShortage(lessons.length, required); return null; }
     const snapshots = lessons.map(snapshotLesson);
@@ -412,6 +437,8 @@
       participantName: participantName(el.reportParticipant.value),
       type,
       month: type === "month" ? el.reportMonth.value : "",
+      rangeStartMonth: type === "multi_month" ? el.reportRangeStartMonth.value : "",
+      rangeEndMonth: type === "multi_month" ? el.reportRangeEndMonth.value : "",
       startDate: snapshots[0].displayDateKey,
       endDate: snapshots[snapshots.length - 1].displayDateKey,
       lessonIds: snapshots.map(function (lesson) { return lesson.instanceId; }),
@@ -441,11 +468,12 @@
     draft.startDate = draft.lessonSnapshot.length ? draft.lessonSnapshot[0].displayDateKey : "";
     draft.endDate = draft.lessonSnapshot.length ? draft.lessonSnapshot[draft.lessonSnapshot.length - 1].displayDateKey : "";
     Object.assign(draft, { accrued: totals.accrued, paid: totals.paid, due: totals.due });
+    const displayBounds = reportDisplayBounds(draft);
     el.reportPreviewContent.innerHTML = `
       <div class="preview-meta">
         <div><span>Ученик / группа</span><strong>${escapeHtml(draft.participantName)}</strong></div>
         <div><span>Тип отчёта</span><strong>${escapeHtml(REPORT_LABELS[draft.type] || draft.type)}</strong></div>
-        <div><span>Период</span><strong>${escapeHtml(reportPeriod(draft.startDate, draft.endDate))}</strong></div>
+        <div><span>Период</span><strong>${escapeHtml(reportPeriod(displayBounds.start, displayBounds.end))}</strong></div>
         <div><span>Количество</span><strong>${draft.lessonCount} ${lessonWord(draft.lessonCount)}</strong></div>
       </div>
       <div class="preview-finance"><div><span>Начислено</span><strong>${money(totals.accrued)}</strong></div><div><span>Оплачено</span><strong>${money(totals.paid)}</strong></div><div><span>К оплате</span><strong>${money(totals.due)}</strong></div></div>
@@ -465,6 +493,7 @@
       const bounds = monthBounds(draft.month);
       return bounds ? `Отчёт по занятиям и оплате за ${MONTHS_NOMINATIVE[bounds.monthIndex].toLowerCase()} ${bounds.year} года` : "Отчёт по занятиям и оплате";
     }
+    if (draft.type === "multi_month") return "Отчёт по занятиям и оплате за несколько месяцев";
     if (draft.type === "package4") return "Отчёт по пакету из 4 занятий";
     if (draft.type === "package10") return "Отчёт по пакету из 10 занятий";
     return "Отчёт по выбранным занятиям";
@@ -475,6 +504,10 @@
     if (draft.type === "month" && draft.month) {
       const bounds = monthBounds(draft.month);
       return `Отчет_${person}_${MONTHS_NOMINATIVE[bounds.monthIndex]}_${bounds.year}.pdf`;
+    }
+    if (draft.type === "multi_month") {
+      const range = monthRangeBounds(draft.rangeStartMonth, draft.rangeEndMonth);
+      if (range) return `Отчет_${person}_${draft.rangeStartMonth}_${draft.rangeEndMonth}.pdf`;
     }
     if (draft.type === "package4" || draft.type === "package10") {
       const amount = draft.type === "package4" ? 4 : 10;
@@ -488,7 +521,8 @@
     const totals = finalizeTotals(calculateTotals(draft.lessonSnapshot));
     const created = new Intl.DateTimeFormat("ru-RU", { dateStyle: "long" }).format(new Date(draft.createdAt || Date.now()));
     const heading = reportHeading(draft);
-    const period = draft.type === "month" ? heading.replace("Отчёт по занятиям и оплате ", "") : `Период: ${reportPeriod(draft.startDate, draft.endDate)}`;
+    const displayBounds = reportDisplayBounds(draft);
+    const period = draft.type === "month" ? heading.replace("Отчёт по занятиям и оплате ", "") : `Период: ${reportPeriod(displayBounds.start, displayBounds.end)}`;
     return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escapeHtml(reportFileName(draft))}</title><style>
       @page{size:A4 portrait;margin:14mm}*{box-sizing:border-box}body{margin:0;background:#f7f1e8;color:#29251f;font-family:"Segoe UI",Arial,sans-serif;font-size:11px;line-height:1.45}.report{max-width:180mm;margin:0 auto;background:#fffefa}.brand{display:flex;align-items:center;gap:9px;color:#a45f00;font-size:13px;font-weight:800;letter-spacing:.02em}.brand i{display:grid;width:30px;height:30px;place-items:center;border-radius:9px;background:#f5a20a;color:#332006;font-style:normal}h1{margin:18px 0 4px;font-size:25px;line-height:1.15;letter-spacing:-.03em}.subtitle{margin:0;color:#70685e}.identity{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:17px 0}.identity div,.metric{padding:11px;border:1px solid #e8dfd2;border-radius:10px;background:#fff}.identity span,.metric span{display:block;color:#8f867a;font-size:9px;text-transform:uppercase;letter-spacing:.06em}.identity strong,.metric strong{display:block;margin-top:4px;font-size:13px}.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}.metric.accent{background:#fff3d9;border-color:#f0d093}.metric strong{font-size:17px}table{width:100%;border-collapse:collapse;margin-top:15px;font-size:9px}thead{display:table-header-group}tr{break-inside:avoid}th{padding:8px 6px;background:#f3ece2;color:#6d655b;text-align:left;text-transform:uppercase;letter-spacing:.04em}td{padding:8px 6px;border-bottom:1px solid #ebe3d7;vertical-align:top}.paid{color:#438136;font-weight:700}.unpaid{color:#c04039;font-weight:700}.totals{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:16px 0}.totals div{padding:11px;border-radius:9px;background:#f5efe6}.totals div:last-child{background:#ffedc7}.totals span,.totals strong{display:block}.totals span{color:#81786d;font-size:9px}.totals strong{margin-top:3px;font-size:15px}.footer{margin-top:19px;padding-top:12px;border-top:1px solid #e5dccf;color:#70685e}.thanks{margin-top:8px;color:#4f4941}.print-actions{position:fixed;right:20px;bottom:20px;display:flex;gap:8px}.print-actions button{padding:10px 16px;border:0;border-radius:9px;background:#f5a20a;color:#2e1d04;font-weight:700;box-shadow:0 8px 18px rgba(180,106,0,.25)}@media print{body{background:#fff}.report{max-width:none}.print-actions{display:none}thead{display:table-header-group}}
     </style></head><body><main class="report"><div class="brand"><i>TC</i>Teacher Calendar</div><h1>${escapeHtml(heading)}</h1><p class="subtitle">${escapeHtml(period)}</p><section class="identity"><div><span>Ученик / группа</span><strong>${escapeHtml(draft.participantName)}</strong></div><div><span>Преподаватель</span><strong>Lilia Penskikh</strong></div></section><section class="metrics"><div class="metric"><span>Количество занятий</span><strong>${draft.lessonSnapshot.length}</strong></div><div class="metric"><span>Проведено</span><strong>${totals.completed}</strong></div><div class="metric"><span>Отменено</span><strong>${totals.cancelled}</strong></div><div class="metric accent"><span>Начислено</span><strong>${money(totals.accrued)}</strong></div><div class="metric"><span>Оплачено</span><strong>${money(totals.paid)}</strong></div><div class="metric accent"><span>Осталось оплатить</span><strong>${money(totals.due)}</strong></div></section><table><thead><tr><th>Дата</th><th>Время</th><th>Мин.</th><th>Статус занятия</th><th>Стоимость</th><th>Оплата</th><th>Дата оплаты</th></tr></thead><tbody>${draft.lessonSnapshot.map(function (lesson) { return `<tr><td>${escapeHtml(D.formatDateShort(lesson.displayDateKey))}</td><td>${escapeHtml(lesson.displayTime)}</td><td>${Number(lesson.durationMinutes || 0)}</td><td>${escapeHtml(lessonStatusLabel(lesson))}</td><td>${money(paymentAmount(lesson))}</td><td class="${lesson.paymentStatus === "paid" ? "paid" : "unpaid"}">${escapeHtml(PAYMENT_LABELS[lesson.paymentStatus] || "Не оплачено")}</td><td>${escapeHtml(lesson.paymentDate ? D.formatDateShort(lesson.paymentDate) : "—")}</td></tr>`; }).join("")}</tbody></table><section class="totals"><div><span>Итого начислено</span><strong>${money(totals.accrued)}</strong></div><div><span>Оплачено</span><strong>${money(totals.paid)}</strong></div><div><span>К оплате</span><strong>${money(totals.due)}</strong></div></section><footer class="footer"><div>Дата формирования: ${escapeHtml(created)}</div><div class="thanks">Спасибо! Если у вас возникли вопросы по отчёту, пожалуйста, свяжитесь с преподавателем.</div></footer></main><div class="print-actions"><button type="button" onclick="window.print()">Печать / Сохранить как PDF</button></div></body></html>`;
@@ -518,7 +552,8 @@
     el.reportHistoryCount.textContent = `${history.length} отчётов`;
     history.forEach(function (report) {
       const item = document.createElement("article"); item.className = "report-history-item";
-      const copy = document.createElement("div"); copy.innerHTML = `<strong>${escapeHtml(report.participantName || participantName(report.participantId))} · ${escapeHtml(REPORT_LABELS[report.type] || report.type)}</strong><small>${escapeHtml(reportPeriod(report.startDate, report.endDate))} · ${report.lessonCount} ${lessonWord(report.lessonCount)}</small>`;
+      const historyBounds = reportDisplayBounds(report);
+      const copy = document.createElement("div"); copy.innerHTML = `<strong>${escapeHtml(report.participantName || participantName(report.participantId))} · ${escapeHtml(REPORT_LABELS[report.type] || report.type)}</strong><small>${escapeHtml(reportPeriod(historyBounds.start, historyBounds.end))} · ${report.lessonCount} ${lessonWord(report.lessonCount)}</small>`;
       const finance = document.createElement("div"); finance.className = "report-history-money"; finance.innerHTML = `<b>${money(report.accrued)}</b>Создан ${escapeHtml(new Intl.DateTimeFormat("ru-RU").format(new Date(report.createdAt)))}`;
       const actions = document.createElement("div"); actions.className = "report-history-actions";
       const repeat = document.createElement("button"); repeat.type = "button"; repeat.className = "primary-button"; repeat.textContent = "Сформировать повторно"; repeat.addEventListener("click", function () { openPrintWindow(report); });
@@ -573,7 +608,7 @@
     el.reportDialogClose.addEventListener("click", function () { el.reportDialog.close(); });
     el.reportCancel.addEventListener("click", function () { el.reportDialog.close(); });
     el.reportType.addEventListener("change", function () { syncReportType(true); });
-    [el.reportParticipant, el.reportMonth, el.reportStartDate, el.manualStartDate, el.manualEndDate, el.manualLessonStatus, el.manualPaymentStatus].forEach(function (input) { input.addEventListener("change", function () { allowShortPackage = false; buildReportCandidates(true); }); });
+    [el.reportParticipant, el.reportMonth, el.reportRangeStartMonth, el.reportRangeEndMonth, el.reportStartDate, el.manualStartDate, el.manualEndDate, el.manualLessonStatus, el.manualPaymentStatus].forEach(function (input) { input.addEventListener("change", function () { allowShortPackage = false; buildReportCandidates(true); }); });
     el.manualSelectAll.addEventListener("click", function () { reportSelectedIds = new Set(reportCandidates.map(function (lesson) { return lesson.instanceId; })); renderReportSelection(); });
     el.manualSelectNone.addEventListener("click", function () { reportSelectedIds.clear(); renderReportSelection(); });
     el.manualCompletedOnly.addEventListener("click", function () { reportSelectedIds = new Set(reportCandidates.filter(function (lesson) { return lesson.lessonStatus === "completed"; }).map(function (lesson) { return lesson.instanceId; })); renderReportSelection(); });
@@ -617,6 +652,8 @@
     cacheElements();
     el.paymentMonthFilter.value = currentMonthValue();
     el.reportMonth.value = currentMonthValue();
+    el.reportRangeStartMonth.value = currentMonthValue();
+    el.reportRangeEndMonth.value = currentMonthValue();
     el.csvMonth.value = currentMonthValue();
     attachEvents();
   }
@@ -624,5 +661,5 @@
   function open() { renderPayments(); }
   function refresh() { if (el.paymentPanel && !el.paymentPanel.hidden) renderPayments(); }
 
-  TC.Payments = { init, open, refresh, lessonsForRange, calculateTotals: function (lessons) { return finalizeTotals(calculateTotals(lessons)); }, selectPackage, buildCsv, uniqueLessons, printableHtml, reportFileName, applyPaymentUpdate };
+  TC.Payments = { init, open, refresh, lessonsForRange, monthRangeBounds, reportDisplayBounds, calculateTotals: function (lessons) { return finalizeTotals(calculateTotals(lessons)); }, selectPackage, buildCsv, uniqueLessons, printableHtml, reportFileName, applyPaymentUpdate };
 })();

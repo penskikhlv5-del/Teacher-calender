@@ -8,9 +8,9 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <title>Lilia Penskikh · Teacher Calendar</title>
-  <link rel="stylesheet" href="styles.css?v=20260815-4">
-  <link rel="stylesheet" href="payments.css?v=20260815-4">
-  <link rel="stylesheet" href="week-copy.css?v=20260815-4">
+  <link rel="stylesheet" href="styles.css?v=20260820-1">
+  <link rel="stylesheet" href="payments.css?v=20260820-1">
+  <link rel="stylesheet" href="week-copy.css?v=20260820-1">
 </head>
 <body>
   <div class="app-shell" id="appShell">
@@ -681,8 +681,12 @@
       </div>
       <div class="form-grid report-settings-grid">
         <label class="field"><span>Ученик или группа <b>*</b></span><select id="reportParticipant" required></select></label>
-        <label class="field"><span>Тип отчёта</span><select id="reportType"><option value="month">За месяц</option><option value="package4">За 4 занятия</option><option value="package10">За 10 занятий</option><option value="manual">Выбрать занятия вручную</option></select></label>
+        <label class="field"><span>Тип отчёта</span><select id="reportType"><option value="month">За месяц</option><option value="multi_month">За несколько месяцев</option><option value="package4">За 4 занятия</option><option value="package10">За 10 занятий</option><option value="manual">Выбрать занятия вручную</option></select></label>
         <label class="field field-wide" id="reportMonthField"><span>Отчётный месяц</span><input id="reportMonth" type="month"></label>
+        <div class="report-month-range field-wide" id="reportMonthRangeFields" hidden>
+          <label class="field"><span>С месяца <b>*</b></span><input id="reportRangeStartMonth" type="month"></label>
+          <label class="field"><span>По месяц включительно <b>*</b></span><input id="reportRangeEndMonth" type="month"></label>
+        </div>
         <label class="field field-wide" id="reportStartField" hidden><span>Первое занятие или начальная дата</span><input id="reportStartDate" type="date"></label>
       </div>
       <section class="manual-report-controls" id="manualReportControls" hidden>
@@ -736,11 +740,11 @@
 
   <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
 
-  <script src="js/dates.js?v=20260815-4"></script>
-  <script src="js/storage.js?v=20260815-4"></script>
-  <script src="js/recurrence.js?v=20260815-4"></script>
-  <script src="js/payments.js?v=20260815-4"></script>
-  <script src="js/week-copy.js?v=20260815-4"></script>
-  <script src="js/app.js?v=20260815-4"></script>
+  <script src="js/dates.js?v=20260820-1"></script>
+  <script src="js/storage.js?v=20260820-1"></script>
+  <script src="js/recurrence.js?v=20260820-1"></script>
+  <script src="js/payments.js?v=20260820-1"></script>
+  <script src="js/week-copy.js?v=20260820-1"></script>
+  <script src="js/app.js?v=20260820-1"></script>
 </body>
 </html>

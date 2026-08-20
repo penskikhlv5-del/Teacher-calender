@@ -116,6 +116,9 @@
       const reportParticipant = base.participants.find(function (participant) { return participant.id === report.participantId; });
       report.participantName = String(report.participantName || (reportParticipant ? reportParticipant.name : "Удалённый участник"));
       report.type = String(report.type || "manual");
+      report.month = /^\d{4}-(0[1-9]|1[0-2])$/.test(report.month || "") ? report.month : "";
+      report.rangeStartMonth = /^\d{4}-(0[1-9]|1[0-2])$/.test(report.rangeStartMonth || "") ? report.rangeStartMonth : "";
+      report.rangeEndMonth = /^\d{4}-(0[1-9]|1[0-2])$/.test(report.rangeEndMonth || "") ? report.rangeEndMonth : "";
       report.startDate = String(report.startDate || "");
       report.endDate = String(report.endDate || "");
       report.lessonSnapshot = report.lessonSnapshot.filter(function (lesson) { return lesson && typeof lesson === "object" && lesson.participantId === report.participantId; });

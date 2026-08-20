@@ -108,6 +108,7 @@
 .report-dialog { width: min(900px, calc(100vw - 32px)); }
 .report-preview-dialog { width: min(960px, calc(100vw - 32px)); }
 .report-settings-grid { padding-bottom: 16px; }
+.report-month-range { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .manual-report-controls { display: grid; gap: 12px; margin: 0 22px 14px; padding: 14px; border: 1px solid var(--border-subtle); border-radius: 13px; background: linear-gradient(145deg, #fff, #f6efe5); }
 .manual-filter-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; }
 .inline-actions { display: flex; flex-wrap: wrap; gap: 7px; }
@@ -164,7 +165,7 @@
   .finance-card { padding: 15px; }
   .payment-table-heading { padding: 13px; }
   .payment-table-scroll { max-height: 58dvh; }
-  .manual-filter-grid, .preview-meta, .preview-finance { grid-template-columns: 1fr; }
+  .report-month-range, .manual-filter-grid, .preview-meta, .preview-finance { grid-template-columns: 1fr; }
   .report-dialog, .report-preview-dialog { width: 100vw; max-width: none; height: 100dvh; max-height: 100dvh; border-radius: 0; }
   .manual-report-controls, .report-selection-section, .report-shortage { margin-inline: 12px; }
   .report-lesson-option { grid-template-columns: auto auto minmax(0,1fr); }
