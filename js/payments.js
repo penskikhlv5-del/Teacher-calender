@@ -133,12 +133,14 @@
   function calculateTotals(lessons) {
     return lessons.reduce(function (totals, lesson) {
       const amount = paymentAmount(lesson);
+      const isChargeable = lesson.lessonStatus === "completed" || lesson.lessonStatus === "missed";
       if (lesson.lessonStatus === "moved" || lesson.movedFromUtc || lesson.originalLessonId) totals.moved += 1;
-      if (lesson.lessonStatus === "completed") {
+      if (isChargeable) {
         totals.accrued += amount;
-        totals.completed += 1;
         if (lesson.paymentStatus === "paid") totals.paid += amount;
-      } else if (isCancelled(lesson.lessonStatus)) totals.cancelled += 1;
+      }
+      if (lesson.lessonStatus === "completed") totals.completed += 1;
+      else if (isCancelled(lesson.lessonStatus)) totals.cancelled += 1;
       else if (lesson.lessonStatus === "scheduled") totals.planned += 1;
       return totals;
     }, { accrued: 0, paid: 0, due: 0, completed: 0, cancelled: 0, moved: 0, planned: 0 });

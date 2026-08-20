@@ -126,12 +126,12 @@
       report.lessonIds = report.lessonSnapshot.map(function (lesson) { return String(lesson.instanceId || lesson.id || ""); }).filter(Boolean);
       report.lessonCount = report.lessonSnapshot.length;
       report.accrued = report.lessonSnapshot.reduce(function (sum, lesson) {
-        if (lesson.lessonStatus !== "completed") return sum;
+        if (lesson.lessonStatus !== "completed" && lesson.lessonStatus !== "missed") return sum;
         const amount = Number(lesson.paymentAmount == null ? lesson.price : lesson.paymentAmount);
         return sum + (Number.isFinite(amount) && amount >= 0 ? amount : 0);
       }, 0);
       report.paid = report.lessonSnapshot.reduce(function (sum, lesson) {
-        if (lesson.lessonStatus !== "completed" || lesson.paymentStatus !== "paid") return sum;
+        if ((lesson.lessonStatus !== "completed" && lesson.lessonStatus !== "missed") || lesson.paymentStatus !== "paid") return sum;
         const amount = Number(lesson.paymentAmount == null ? lesson.price : lesson.paymentAmount);
         return sum + (Number.isFinite(amount) && amount >= 0 ? amount : 0);
       }, 0);
